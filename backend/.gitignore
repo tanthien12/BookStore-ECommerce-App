@@ -1,0 +1,17 @@
+# Bỏ qua thư mục node_modules
+node_modules/
+
+# Bỏ qua file môi trường
+.env
+
+# Bỏ qua thư mục build nếu có
+dist/
+build/
+
+# Bỏ qua log
+*.log
+logs/
+
+# Bỏ qua thư mục IDE nếu có
+.vscode/
+.idea/

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, memo } from 'react'
 import { HiOutlineSquares2X2 } from 'react-icons/hi2'
 import { FiChevronDown, FiSearch, FiBell, FiShoppingCart, FiUser } from 'react-icons/fi'
+import { Link } from "react-router-dom";
 
 // ===== Helpers =====
 const useClickOutside = (ref, handler) => {
@@ -43,10 +44,10 @@ const NavIcon = memo(({ icon: Icon, label, onClick, badge, active }) => (
     </button>
 ))
 
-const AccountPopover = ({ open, onClose, onSignIn, onSignUp }) => {
-    const popRef = useRef(null)
-    useClickOutside(popRef, onClose)
-    if (!open) return null
+const AccountPopover = ({ open, onClose }) => {
+    const popRef = useRef(null);
+    useClickOutside(popRef, onClose);
+    if (!open) return null;
     return (
         <div
             ref={popRef}
@@ -55,20 +56,20 @@ const AccountPopover = ({ open, onClose, onSignIn, onSignUp }) => {
             className="absolute right-0 z-50 mt-3 w-80 rounded-2xl border border-gray-200 bg-white p-4 shadow-xl"
         >
             <div className="space-y-3">
-                <button
-                    type="button"
-                    onClick={onSignIn}
-                    className="w-full rounded-xl bg-red-600 px-4 py-3 text-base font-semibold text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                <Link
+                    to="/login"
+                    onClick={onClose}
+                    className="block w-full text-center rounded-xl bg-red-600 px-4 py-3 text-base font-semibold text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                 >
                     Đăng nhập
-                </button>
-                <button
-                    type="button"
-                    onClick={onSignUp}
-                    className="w-full rounded-xl border-2 border-red-600 px-4 py-3 text-base font-semibold text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                </Link>
+                <Link
+                    to="/register"
+                    onClick={onClose}
+                    className="block w-full text-center rounded-xl border-2 border-red-600 px-4 py-3 text-base font-semibold text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                 >
                     Đăng ký
-                </button>
+                </Link>
             </div>
         </div>
     )
@@ -107,10 +108,12 @@ const LanguageDropdown = ({ open, onToggle, onChange, value = 'vi' }) => (
 )
 
 const Logo = () => (
-    <a href="#" className="shrink-0 select-none">
-        <span className="text-2xl font-extrabold tracking-tight text-red-600">BookStore<span className="text-gray-800">.com</span></span>
-    </a>
-)
+    <Link to="/" className="shrink-0 select-none" aria-label="Trang chủ">
+        <span className="text-2xl font-extrabold tracking-tight text-red-600">
+            BookStore<span className="text-gray-800">.com</span>
+        </span>
+    </Link>
+);
 
 // ===== Main Component =====
 const Header = ({

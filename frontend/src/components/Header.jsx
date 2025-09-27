@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, memo } from 'react'
 import { HiOutlineSquares2X2 } from 'react-icons/hi2'
 import { FiChevronDown, FiSearch, FiBell, FiShoppingCart, FiUser } from 'react-icons/fi'
 import { Link } from "react-router-dom";
+//
 
 // ===== Helpers =====
 const useClickOutside = (ref, handler) => {

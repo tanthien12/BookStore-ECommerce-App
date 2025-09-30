@@ -1,3 +1,6 @@
+# Bỏ qua các file và thư mục không cần thiết trong dự án Node.js
+uploads/
+
 # Bỏ qua thư mục node_modules
 node_modules/
 

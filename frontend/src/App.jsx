@@ -11,6 +11,7 @@ const App = () => {
       <ToastContainer />
       <Header />
       <Outlet />
+      <ToastContainer position="top-right" autoClose={2000} />
     </>
   )
 }

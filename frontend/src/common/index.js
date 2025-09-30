@@ -23,6 +23,40 @@ const summaryApi = {
     // logout: "/auth/logout",
   },
 
+  upload: {
+    product: {
+      single: "/upload/products",
+      multiple: "/upload/products/multiple",
+    },
+    user: {
+      single: "/upload/users",
+      multiple: "/upload/users/multiple",
+    },
+    category: {
+      single: "/upload/categories",
+      multiple: "/upload/categories/multiple",
+    },
+    remove: "/upload", // body: { bucket, fileName }
+  },
+
+  // ====== Book ======
+  book: {
+    list: "/books",            // GET ?q=&page=&limit=&sort=&category_id=
+    detail: (id) => `/books/${id}`, // GET by id
+    create: "/books",          // POST
+    update: (id) => `/books/${id}`, // PUT
+    delete: (id) => `/books/${id}`, // DELETE
+  },
+
+  // ====== Category ======
+  category: {
+    list: "/categories",                // GET ?q=&page=&limit=&sort=
+    detail: (id) => `/categories/${id}`,// GET by id
+    create: "/categories",              // POST
+    update: (id) => `/categories/${id}`,// PUT
+    delete: (id) => `/categories/${id}`,// DELETE
+  },
+
   // ====== Tiện ích: tạo full URL nhanh ======
   url: (path) => {
     // Ghép URL an toàn, tránh // trùng

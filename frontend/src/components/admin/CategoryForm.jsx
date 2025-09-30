@@ -4,7 +4,7 @@ import { MdSave } from "react-icons/md";
 
 // helper: tạo slug tiếng Việt không dấu
 function slugifyVi(str = "") {
-    return str
+    return String(str)
         .normalize("NFD").replace(/\p{Diacritic}/gu, "") // bỏ dấu
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, "")
@@ -15,31 +15,47 @@ function slugifyVi(str = "") {
 
 export default function CategoryForm({
     mode = "create",            // "create" | "edit"
-    initialValues = {},         // { id, name, slug, description, image_url }
+    initialValues = null,       // 🔧 đổi {} -> null để tránh object mới mỗi render
     onSubmit,                   // (FormData) => Promise<void>
 }) {
-    const [name, setName] = useState(initialValues.name || "");
-    const [slug, setSlug] = useState(initialValues.slug || "");
-    const [description, setDescription] = useState(initialValues.description || "");
+    // ===== STATE gốc trống, chỉ đổ khi EDIT + có initialValues
+    const [name, setName] = useState("");
+    const [slug, setSlug] = useState("");
+    const [description, setDescription] = useState("");
     const [imageFile, setImageFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState("");
 
     const [errors, setErrors] = useState({});
     const [submitting, setSubmitting] = useState(false);
 
-    // đồng bộ khi initialValues thay đổi
+    // Theo dõi người dùng đã chạm vào ô slug chưa (để không overwrite khi họ gõ tay)
+    const [slugTouched, setSlugTouched] = useState(false);
+
+    // ===== Đổ dữ liệu khi EDIT (chỉ khi id thay đổi)
     useEffect(() => {
+        if (mode !== "edit" || !initialValues) return;
+
         setName(initialValues.name || "");
         setSlug(initialValues.slug || "");
         setDescription(initialValues.description || "");
-    }, [initialValues]);
+        setSlugTouched(false);
 
-    // tự gợi ý slug khi tạo mới
+        if (initialValues.image_url) setPreviewUrl(initialValues.image_url);
+    }, [mode, initialValues?.id]); // 👈 chỉ phụ thuộc id
+
+    // Cleanup blob URL khi đổi file/unmount
     useEffect(() => {
-        if (!initialValues.slug && mode === "create") {
+        return () => {
+            if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
+
+    // ===== Tự gợi ý slug khi TẠO MỚI & user chưa sửa slug thủ công
+    useEffect(() => {
+        if (mode === "create" && !slugTouched) {
             setSlug(slugifyVi(name));
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [name]);
+    }, [name, mode, slugTouched]);
 
     const validate = () => {
         const e = {};
@@ -48,6 +64,19 @@ export default function CategoryForm({
         if (mode === "create" && !imageFile) e.image = "Ảnh danh mục là bắt buộc.";
         setErrors(e);
         return Object.keys(e).length === 0;
+    };
+
+    const handleFileChange = (file) => {
+        setImageFile(file || null);
+        if (file) {
+            const url = URL.createObjectURL(file);
+            setPreviewUrl((prev) => {
+                if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+                return url;
+            });
+        } else {
+            setPreviewUrl("");
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -75,7 +104,7 @@ export default function CategoryForm({
                         {mode === "edit" ? "Sửa danh mục" : "Thêm danh mục"}
                     </h2>
                     <p className="text-sm text-gray-500">
-                        Bảng Category: name, slug, description{initialValues.image_url ? ", image_url" : ""}.
+                        Bảng Category: name, slug, description{initialValues?.image_url ? ", image_url" : ""}.
                     </p>
                 </div>
 
@@ -86,8 +115,7 @@ export default function CategoryForm({
                         <input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className={`w-full px-3 py-2 rounded-lg border ${errors.name ? "border-red-400" : "border-gray-300"
-                                } focus:ring-2 focus:ring-blue-500`}
+                            className={`w-full px-3 py-2 rounded-lg border ${errors.name ? "border-red-400" : "border-gray-300"} focus:ring-2 focus:ring-blue-500`}
                             placeholder="VD: Lập trình, Cơ sở dữ liệu"
                         />
                         {errors.name && <div className="text-xs text-red-600 mt-1">{errors.name}</div>}
@@ -98,9 +126,12 @@ export default function CategoryForm({
                         <label className="block text-sm font-medium mb-1">Slug *</label>
                         <input
                             value={slug}
-                            onChange={(e) => setSlug(slugifyVi(e.target.value))}
-                            className={`w-full px-3 py-2 rounded-lg border ${errors.slug ? "border-red-400" : "border-gray-300"
-                                } focus:ring-2 focus:ring-blue-500`}
+                            onChange={(e) => {
+                                setSlug(slugifyVi(e.target.value));
+                                setSlugTouched(true); // user đã chỉnh tay
+                            }}
+                            onFocus={() => setSlugTouched(true)}
+                            className={`w-full px-3 py-2 rounded-lg border ${errors.slug ? "border-red-400" : "border-gray-300"} focus:ring-2 focus:ring-blue-500`}
                             placeholder="lap-trinh"
                         />
                         {errors.slug && <div className="text-xs text-red-600 mt-1">{errors.slug}</div>}
@@ -121,16 +152,15 @@ export default function CategoryForm({
             </div>
 
             {/* Ảnh danh mục */}
-            <div className="bg-white rounded-xl shadow border border-gray-200 p-4">
+            <div className="bg-white rounded-xl shadow border border-gray-200 p-4 space-y-3">
                 <label className="block text-sm font-medium mb-2">
                     {mode === "edit" ? "Đổi ảnh danh mục" : "Thêm ảnh danh mục"}
-                    {mode === "edit" && initialValues.image_url ? " (đang có ảnh sẵn)" : ""}
+                    {mode === "edit" && initialValues?.image_url ? " (đang có ảnh sẵn)" : ""}
                 </label>
                 <div className="flex items-center justify-center w-full">
                     <label
                         htmlFor="cat-dropzone"
-                        className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${errors.image ? "border-red-400" : "border-gray-300"
-                            }`}
+                        className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${errors.image ? "border-red-400" : "border-gray-300"}`}
                     >
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             <p className="mb-2 text-sm text-gray-500">
@@ -143,11 +173,19 @@ export default function CategoryForm({
                             type="file"
                             className="hidden"
                             accept="image/*"
-                            onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                            onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                         />
                     </label>
                 </div>
                 {errors.image && <div className="text-xs text-red-600 mt-1">{errors.image}</div>}
+
+                {/* Preview ảnh (nếu có) */}
+                {previewUrl && (
+                    <div className="border rounded-lg p-3 bg-gray-50">
+                        <div className="text-sm text-gray-600 mb-2">Ảnh đã chọn:</div>
+                        <img src={previewUrl} alt="Category preview" className="max-h-48 w-auto object-contain mx-auto" />
+                    </div>
+                )}
             </div>
 
             {/* Actions */}

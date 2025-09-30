@@ -1,23 +1,27 @@
+// src/pages/admin/CategoryList.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
     MdSearch, MdDownload, MdAdd, MdFilterList, MdEdit, MdDelete, MdMenu,
 } from "react-icons/md";
-
-// --- Mock data (giữ nguyên của bạn) ---
-const MOCK_CATEGORIES = [
-    { id: "c1", name: "Bag", slug: "bag", description: "Practical Granite Chicken", image_url: "https://picsum.photos/seed/cat1/64/64", productsCount: 19 },
-    { id: "c2", name: "Programming", slug: "programming", description: "Books for developers", image_url: "https://picsum.photos/seed/cat2/64/64", productsCount: 35 },
-    { id: "c3", name: "Database", slug: "database", description: "SQL, NoSQL, and more", image_url: "https://picsum.photos/seed/cat3/64/64", productsCount: 22 },
-    { id: "c4", name: "AI/ML", slug: "ai-ml", description: "Artificial Intelligence", image_url: "https://picsum.photos/seed/cat4/64/64", productsCount: 18 },
-];
+import summaryApi from "../../common";
+import { toast } from "react-toastify";
 
 const COL_KEY = "admin.categories.table.columns";
 
 export default function CategoryList() {
+    // ===== query & paging =====
     const [query, setQuery] = useState("");
+    const [page, setPage] = useState(1);
+    const pageSize = 10;
+    const [total, setTotal] = useState(0);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-    // ===== Toggle Columns (localStorage) =====
+    // ===== data =====
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    // ===== columns toggle (localStorage) =====
     const [showCols, setShowCols] = useState(() => {
         const saved = localStorage.getItem(COL_KEY);
         return saved ? JSON.parse(saved)
@@ -25,7 +29,7 @@ export default function CategoryList() {
     });
     useEffect(() => localStorage.setItem(COL_KEY, JSON.stringify(showCols)), [showCols]);
 
-    // ===== Dropdown Toggle Columns =====
+    // ===== dropdown toggle columns =====
     const [openColMenu, setOpenColMenu] = useState(false);
     const colBtnRef = useRef(null);
     const colMenuRef = useRef(null);
@@ -43,31 +47,51 @@ export default function CategoryList() {
         return () => { window.removeEventListener("click", onClickOutside); window.removeEventListener("keydown", onEsc); };
     }, [openColMenu]);
 
-    // ===== Search =====
-    const filtered = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        if (!q) return MOCK_CATEGORIES;
-        return MOCK_CATEGORIES.filter(
-            (c) =>
-                c.name.toLowerCase().includes(q) ||
-                c.slug.toLowerCase().includes(q) ||
-                (c.description || "").toLowerCase().includes(q)
-        );
+    // ===== debounce search =====
+    const [debouncedQ, setDebouncedQ] = useState(query);
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedQ(query.trim()), 300);
+        return () => clearTimeout(t);
     }, [query]);
+    useEffect(() => { setPage(1); }, [debouncedQ]);
 
-    // ===== Pagination =====
-    const [page, setPage] = useState(1);
-    const pageSize = 4;
-    const total = filtered.length;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const slice = filtered.slice((page - 1) * pageSize, page * pageSize);
-    useEffect(() => setPage(1), [query]);
+    // ===== fetch list =====
+    useEffect(() => {
+        let ignore = false;
+        const ctrl = new AbortController();
+        (async () => {
+            try {
+                setLoading(true);
+                const url = new URL(summaryApi.url(summaryApi.category.list));
+                if (debouncedQ) url.searchParams.set("q", debouncedQ);
+                url.searchParams.set("page", String(page));
+                url.searchParams.set("limit", String(pageSize));
+                url.searchParams.set("sort", "newest");
 
-    // ===== Select-All & Row Selection =====
+                const res = await fetch(url.toString(), { signal: ctrl.signal });
+                if (!res.ok) throw new Error(`Fetch categories failed: ${res.status}`);
+                const data = await res.json();
+                if (!ignore) {
+                    setItems(data.items || []);
+                    setTotal(data.total ?? 0);
+                }
+            } catch (e) {
+                if (e.name !== "AbortError") {
+                    console.error(e);
+                    toast.error(e.message || "Không tải được danh mục");
+                }
+            } finally {
+                if (!ignore) setLoading(false);
+            }
+        })();
+        return () => { ignore = true; ctrl.abort(); };
+    }, [debouncedQ, page]);
+
+    const slice = useMemo(() => items, [items]);
+
+    // ===== selection =====
     const [selectedIds, setSelectedIds] = useState(() => new Set());
     const headerCbRef = useRef(null);
-
-    // cập nhật trạng thái indeterminate cho checkbox header
     useEffect(() => {
         const allIdsOnPage = slice.map((c) => c.id);
         const checkedCount = allIdsOnPage.filter((id) => selectedIds.has(id)).length;
@@ -87,7 +111,6 @@ export default function CategoryList() {
             return next;
         });
     };
-
     const toggleRow = (id) => {
         setSelectedIds((prev) => {
             const next = new Set(prev);
@@ -96,15 +119,97 @@ export default function CategoryList() {
         });
     };
 
-    const handleDelete = (id) => {
-        if (confirm("Bạn chắc chắn muốn xóa danh mục này?")) {
-            console.log("Delete category:", id);
-            // TODO: gọi API xóa -> reload
-            setSelectedIds((prev) => {
-                const next = new Set(prev);
-                next.delete(id);
-                return next;
-            });
+    // ===== delete single =====
+    const handleDelete = async (id) => {
+        if (!confirm("Bạn chắc chắn muốn xóa danh mục này?")) return;
+        try {
+            const res = await fetch(summaryApi.url(summaryApi.category.delete(id)), { method: "DELETE" });
+            if (!res.ok) {
+                const j = await res.json().catch(() => null);
+                throw new Error(j?.message || `Xóa thất bại (${res.status})`);
+            }
+            toast.success("Đã xóa danh mục");
+            setItems((prev) => prev.filter((x) => x.id !== id));
+            setTotal((t) => Math.max(0, t - 1));
+            setSelectedIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+        } catch (e) {
+            console.error(e);
+            toast.error(e.message || "Lỗi xóa danh mục");
+        }
+    };
+
+    // ===== bulk delete (selection) =====
+    const handleBulkDelete = async () => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) {
+            toast.info("Chưa chọn danh mục nào.");
+            return;
+        }
+        if (!confirm(`Xóa ${ids.length} danh mục đã chọn?`)) return;
+
+        try {
+            // tuần tự để backend đơn giản; có thể Promise.all nếu backend chịu tải
+            let okCount = 0;
+            for (const id of ids) {
+                const res = await fetch(summaryApi.url(summaryApi.category.delete(id)), { method: "DELETE" });
+                if (res.ok) okCount++;
+            }
+            toast.success(`Đã xóa ${okCount}/${ids.length} danh mục`);
+            // cập nhật UI
+            setItems((prev) => prev.filter((x) => !selectedIds.has(x.id)));
+            setTotal((t) => Math.max(0, t - okCount));
+            setSelectedIds(new Set());
+        } catch (e) {
+            console.error(e);
+            toast.error("Có lỗi khi xóa hàng loạt");
+        }
+    };
+
+    // ===== export CSV (theo bộ lọc hiện tại) =====
+    const handleExportCsv = async () => {
+        try {
+            // Lấy TẤT CẢ theo q hiện tại (không phân trang) — limit lớn vừa phải
+            const url = new URL(summaryApi.url(summaryApi.category.list));
+            if (debouncedQ) url.searchParams.set("q", debouncedQ);
+            url.searchParams.set("page", "1");
+            url.searchParams.set("limit", "5000"); // tuỳ quy mô
+            url.searchParams.set("sort", "newest");
+
+            const res = await fetch(url.toString());
+            if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+            const data = await res.json();
+            const rows = data.items || [];
+
+            // build CSV
+            const header = ["id", "name", "slug", "description", "image_url", "created_at", "updated_at", "productsCount"];
+            const esc = (v) => {
+                const s = (v ?? "").toString().replace(/"/g, '""');
+                return `"${s}"`;
+            };
+            const lines = [header.join(",")];
+            for (const r of rows) {
+                lines.push([
+                    esc(r.id),
+                    esc(r.name),
+                    esc(r.slug),
+                    esc(r.description || ""),
+                    esc(r.image_url || ""),
+                    esc(r.created_at || ""),
+                    esc(r.updated_at || ""),
+                    esc(r.productsCount ?? ""),
+                ].join(","));
+            }
+            const blob = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `categories_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            toast.success(`Đã xuất ${rows.length} dòng CSV`);
+        } catch (e) {
+            console.error(e);
+            toast.error(e.message || "Lỗi export CSV");
         }
     };
 
@@ -113,9 +218,20 @@ export default function CategoryList() {
             {/* Row 1: Title + Export + Add */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h1 className="text-2xl font-bold">Categories</h1>
-                <div className="flex items-center gap-2">
-                    <button className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50">
-                        <MdDownload /> Export
+                <div className="flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={handleExportCsv}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-50"
+                    >
+                        <MdDownload /> Export CSV
+                    </button>
+                    <button
+                        onClick={handleBulkDelete}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-600 disabled:opacity-50"
+                        disabled={selectedIds.size === 0}
+                        title="Xóa tất cả danh mục đã chọn"
+                    >
+                        <MdDelete /> Xóa đã chọn ({selectedIds.size})
                     </button>
                     <Link
                         to="/admin/categories-add"
@@ -191,7 +307,6 @@ export default function CategoryList() {
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-100 text-gray-600">
                             <tr>
-                                {/* Cột checkbox: cố định width + canh giữa */}
                                 <th className="w-12 p-0">
                                     <div className="h-12 flex items-center justify-center">
                                         <input
@@ -212,64 +327,73 @@ export default function CategoryList() {
                         </thead>
 
                         <tbody className="divide-y">
-                            {slice.map((c) => {
-                                const isChecked = selectedIds.has(c.id);
-                                return (
-                                    <tr key={c.id} className="hover:bg-gray-50">
-                                        {/* Checkbox từng dòng: cùng width + canh giữa để thẳng hàng */}
-                                        <td className="w-12 p-0">
-                                            <div className="h-16 flex items-center justify-center">
-                                                <input
-                                                    type="checkbox"
-                                                    className="accent-blue-600"
-                                                    checked={isChecked}
-                                                    onChange={() => toggleRow(c.id)}
-                                                />
-                                            </div>
-                                        </td>
-
-                                        {showCols.image && (
-                                            <td className="p-3">
-                                                <img src={c.image_url} alt={c.name} className="w-12 h-12 rounded-md object-cover border" />
+                            {loading ? (
+                                <tr><td colSpan={7} className="p-8 text-center text-gray-500">Đang tải…</td></tr>
+                            ) : slice.length === 0 ? (
+                                <tr><td colSpan={7} className="p-8 text-center text-gray-500">Không có danh mục nào.</td></tr>
+                            ) : (
+                                slice.map((c) => {
+                                    const isChecked = selectedIds.has(c.id);
+                                    return (
+                                        <tr key={c.id} className="hover:bg-gray-50">
+                                            <td className="w-12 p-0">
+                                                <div className="h-16 flex items-center justify-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="accent-blue-600"
+                                                        checked={isChecked}
+                                                        onChange={() => toggleRow(c.id)}
+                                                    />
+                                                </div>
                                             </td>
-                                        )}
-                                        {showCols.name && (
+
+                                            {showCols.image && (
+                                                <td className="p-3">
+                                                    {c.image_url ? (
+                                                        <img src={c.image_url} alt={c.name} className="w-12 h-12 rounded-md object-cover border" />
+                                                    ) : (
+                                                        <div className="w-12 h-12 rounded-md border bg-gray-100 flex items-center justify-center text-xs text-gray-500">—</div>
+                                                    )}
+                                                </td>
+                                            )}
+                                            {showCols.name && (
+                                                <td className="p-3 align-middle">
+                                                    <Link to={`/admin/categories/${c.id}`} className="font-medium hover:underline">
+                                                        {c.name}
+                                                    </Link>
+                                                </td>
+                                            )}
+                                            {showCols.description && (
+                                                <td className="p-3 align-middle text-gray-700">
+                                                    <div className="clamp-1 max-w-[150px]" title={c.description || ""}>
+                                                        {c.description || "—"}
+                                                    </div>
+                                                </td>
+                                            )}
+                                            {showCols.slug && <td className="p-3 align-middle"><span className="text-gray-700">{c.slug}</span></td>}
+                                            {showCols.products && <td className="p-3 align-middle font-medium">{c.productsCount ?? 0}</td>}
+
                                             <td className="p-3 align-middle">
-                                                <Link to={`/admin/categories/${c.id}`} className="font-medium hover:underline">
-                                                    {c.name}
-                                                </Link>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Link
+                                                        to={`/admin/categories-edit/${c.id}`}
+                                                        className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-gray-300 hover:bg-gray-100"
+                                                        title="Sửa"
+                                                    >
+                                                        <MdEdit />
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => handleDelete(c.id)}
+                                                        className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-gray-300 hover:bg-gray-100 text-red-600"
+                                                        title="Xóa"
+                                                    >
+                                                        <MdDelete />
+                                                    </button>
+                                                </div>
                                             </td>
-                                        )}
-                                        {showCols.description && <td className="p-3 align-middle text-gray-700">{c.description || "—"}</td>}
-                                        {showCols.slug && <td className="p-3 align-middle"><span className="text-gray-700">{c.slug}</span></td>}
-                                        {showCols.products && <td className="p-3 align-middle font-medium">{c.productsCount ?? 0}</td>}
-
-                                        <td className="p-3 align-middle">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Link
-                                                    to={`/admin/categories-edit/${c.id}`}
-                                                    className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-gray-300 hover:bg-gray-100"
-                                                    title="Sửa"
-                                                >
-                                                    <MdEdit />
-                                                </Link>
-                                                <button
-                                                    onClick={() => handleDelete(c.id)}
-                                                    className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-gray-300 hover:bg-gray-100 text-red-600"
-                                                    title="Xóa"
-                                                >
-                                                    <MdDelete />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-
-                            {slice.length === 0 && (
-                                <tr>
-                                    <td colSpan={7} className="p-8 text-center text-gray-500">Không có danh mục nào.</td>
-                                </tr>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
@@ -278,7 +402,9 @@ export default function CategoryList() {
                 {/* Pagination footer */}
                 <div className="flex items-center justify-between px-4 py-3 bg-white border-t">
                     <div className="text-sm text-gray-600">
-                        Đang hiển thị {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} / {total}
+                        {total > 0
+                            ? <>Đang hiển thị {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} / {total}</>
+                            : <>Không có dữ liệu</>}
                     </div>
                     <div className="flex items-center gap-2">
                         <button

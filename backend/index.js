@@ -6,6 +6,8 @@ const { env } = require("./config");
 const { pool } = require("./config/db.config");
 const routes = require("./routes");
 const { errorHandler } = require("./middlewares/error.middleware");
+const cfg = require("./config/storage.config");
+const path = require("path");
 
 const app = express();
 
@@ -16,6 +18,9 @@ app.use(morgan("dev"));
 
 // Routes
 app.use("/api", routes);
+
+// Serve static: http://localhost:4000/uploads/<bucket>/<fileName>
+app.use(`/${cfg.localDir}`, express.static(path.join(process.cwd(), cfg.localDir)));
 
 // Health check
 app.get("/health", async (req, res) => {

@@ -1,4 +1,31 @@
 @import "tailwindcss";
+/* @import "@tailwindcss/line-clamp"; */
+
+@layer utilities {
+    .clamp-1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        /* số dòng muốn hiển thị */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        /* hiển thị tối đa 2 dòng */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .clamp-3 {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        /* hiển thị tối đa 3 dòng */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+}
 
 
 /* Đặt base toàn site sau Preflight */

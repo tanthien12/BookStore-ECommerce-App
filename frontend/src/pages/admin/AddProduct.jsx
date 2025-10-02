@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductForm from "../../components/admin/ProductForm";
-import summaryApi from "../../common"; // summaryApi.url(...)
-// import { toast } from "react-toastify";
+import summaryApi from "../../common";
+import { toast } from "react-toastify";
 
 export default function AddProduct() {
     const nav = useNavigate();
@@ -19,7 +19,7 @@ export default function AddProduct() {
         return Number.isFinite(n) ? n : d;
     };
 
-    // 1) Lấy danh mục
+    // Lấy danh mục
     useEffect(() => {
         let ignore = false;
         (async () => {
@@ -33,7 +33,7 @@ export default function AddProduct() {
                 }
             } catch (err) {
                 console.error(err);
-                // toast?.error?.("Không tải được danh mục");
+                toast?.error?.("Không tải được danh mục");
             } finally {
                 setLoadingCats(false);
             }
@@ -41,28 +41,45 @@ export default function AddProduct() {
         return () => { ignore = true; };
     }, []);
 
-    // 2) Submit tạo sách
+    // Submit tạo sách
     const handleCreate = async (formData) => {
         try {
             const fd = formData instanceof FormData ? formData : new FormData();
 
-            // 2.1 Upload ảnh nếu có
-            let image_url = fd.get("image_url") || "";
-            const file = fd.get("image");
-            if (file && file.size > 0 && file.type?.startsWith("image/")) {
+            // 1) Danh mục (array)
+            let category_ids = [];
+            if (fd.has("category_ids_json")) {
+                try { category_ids = JSON.parse(fd.get("category_ids_json")) || []; } catch { category_ids = []; }
+            }
+
+            // 2) Ảnh giữ lại (từ preview URL cũ khi edit; ở create thường empty)
+            let keep_image_urls = [];
+            if (fd.has("keep_image_urls_json")) {
+                try { keep_image_urls = JSON.parse(fd.get("keep_image_urls_json")) || []; } catch { keep_image_urls = []; }
+            }
+
+            // 3) Upload nhiều ảnh mới (nếu có)
+            const files = fd.getAll("images").filter(Boolean);
+            let uploadedUrls = [];
+            if (files.length > 0) {
                 const upFd = new FormData();
-                upFd.append("file", file);
-                const upRes = await fetch(summaryApi.url(summaryApi.upload.product.single), {
+                // BE routes: /upload/products/multiple (field 'files' hoặc 'file' — mình chọn 'files')
+                files.forEach((f) => upFd.append("files", f));
+                const upRes = await fetch(summaryApi.url(summaryApi.upload.product.multiple), {
                     method: "POST",
                     body: upFd,
                 });
-                if (!upRes.ok) throw new Error(`Upload image failed: ${upRes.status}`);
+                if (!upRes.ok) throw new Error(`Upload images failed: ${upRes.status}`);
                 const upJson = await upRes.json();
-                // ✅ Tương thích cả 2 dạng { success, url } hoặc { success, data: { url } }
-                image_url = upJson?.url || upJson?.data?.url || image_url || "";
+                // chấp nhận dạng {success, data:[{url}]} hoặc {success, urls:[...]}
+                const arr = upJson?.data || upJson?.urls || [];
+                uploadedUrls = arr.map((x) => x.url || x).filter(Boolean);
             }
 
-            // 2.2 Lấy fields
+            // Gộp ảnh cũ cần giữ + ảnh mới upload
+            const allImageUrls = [...keep_image_urls, ...uploadedUrls];
+
+            // 4) Các field khác
             const title = fd.get("title") || "";
             const author = fd.get("author") || "";
             const isbn = fd.get("isbn") || "";
@@ -74,22 +91,8 @@ export default function AddProduct() {
             const stock = toInt(fd.get("stock"), 0);
             const description = fd.get("description") || "";
 
-            // 2.2.1 category_ids: đọc từ category_ids_json (đã chuẩn hóa ở Form)
-            let category_ids = [];
-            if (fd.has("category_ids_json")) {
-                try { category_ids = JSON.parse(fd.get("category_ids_json")) || []; } catch { category_ids = []; }
-            } else if (fd.has("category_ids")) {
-                // fallback: nếu có nhiều option được append theo từng value
-                category_ids = fd.getAll("category_ids");
-                // Nếu lỡ gửi 1 chuỗi JSON (["id"]) vào category_ids:
-                if (category_ids.length === 1 && /^\s*\[.*\]\s*$/.test(category_ids[0])) {
-                    try { category_ids = JSON.parse(category_ids[0]) || []; } catch { category_ids = []; }
-                }
-            } else if (fd.has("category_ids_csv")) {
-                const raw = (fd.get("category_ids_csv") || "").trim();
-                category_ids = raw ? raw.split(",").map((s) => s.trim()) : [];
-            }
-
+            // 5) Payload gửi BE
+            // Giữ tương thích: image_url (ảnh chính = ảnh đầu tiên), và thêm gallery_urls (mảng)
             const payload = {
                 title,
                 author: author || null,
@@ -101,7 +104,8 @@ export default function AddProduct() {
                 price,
                 stock,
                 description: description || null,
-                image_url: image_url || undefined, // để qua zod.optional()
+                image_url: allImageUrls[0] || undefined,  // ảnh đại diện
+                gallery_urls: allImageUrls.length > 1 ? allImageUrls : undefined, // mảng ảnh
                 category_ids, // UUID[]
             };
 
@@ -117,11 +121,11 @@ export default function AddProduct() {
                 throw new Error(msg);
             }
 
-            // toast?.success?.("Đã tạo sách thành công");
+            toast?.success?.("Đã tạo sách thành công");
             nav("/admin/products");
         } catch (err) {
             console.error(err);
-            // toast?.error?.(err.message || "Lỗi tạo sách");
+            toast?.error?.(err.message || "Lỗi tạo sách");
             alert(err.message || "Lỗi tạo sách");
         }
     };

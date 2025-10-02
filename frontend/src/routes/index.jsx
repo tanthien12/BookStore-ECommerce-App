@@ -7,7 +7,7 @@ import Register from '../pages/Register.jsx';
 import ForgotPassword from '../pages/ForgotPassword.jsx';
 import AuthRecover from '../pages/AuthRecover.jsx';
 import AdminLayout from '../pages/admin/AdminLayout.jsx';
-import AllProducts from '../pages/admin/AllProducts.jsx';
+import ProductList from '../pages/admin/ProductList.jsx';
 import CategoryList from '../pages/admin/CategoryList.jsx';
 import OrderList from '../pages/admin/OrderList.jsx';
 // import AddProduct from '../components/admin/AddProduct.jsx';
@@ -53,7 +53,7 @@ const router = createBrowserRouter([
                 element: <AdminLayout />,
                 children: [
                     { index: true, element: <DashboardAdmin /> }, // /admin
-                    { path: "products", element: <AllProducts /> }, // /admin/products
+                    { path: "products", element: <ProductList /> }, // /admin/products
                     { path: "products-add", element: <AddProduct /> }, // /admin/products-add
                     { path: "products-edit/:id", element: <EditProduct /> }, // /admin/products-edit/:id
 

@@ -28,6 +28,7 @@ const bookSchema = z.object({
     stock: z.coerce.number().int().nonnegative().default(0),
     description: z.string().optional().nullable(),
     image_url: optionalUrlOrEmpty,
+    gallery_urls: z.array(z.string().url()).optional(),
     // nhận mảng UUID (string)
     category_ids: z.array(z.string().uuid("category_id phải là UUID")).optional().default([]),
 });

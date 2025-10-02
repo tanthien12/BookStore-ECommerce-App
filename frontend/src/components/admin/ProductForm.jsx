@@ -1,15 +1,17 @@
 // src/components/admin/ProductForm.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { MdSave } from "react-icons/md";
+import { MdSave, MdClose } from "react-icons/md";
+import TomSelect from "tom-select";
 
 export default function ProductForm({
     mode = "create",
-    initialValues = null,          // 🔧 đổi {} -> null
+    initialValues = null,
     allCategories = [],
+    categoriesLoading = false,
     onSubmit,
 }) {
-    // --- STATE
+    // ====== Text fields ======
     const [title, setTitle] = useState("");
     const [author, setAuthor] = useState("");
     const [isbn, setIsbn] = useState("");
@@ -20,19 +22,20 @@ export default function ProductForm({
     const [description, setDescription] = useState("");
     const [price, setPrice] = useState("");
     const [stock, setStock] = useState(0);
-    const [categoryId, setCategoryId] = useState("");
 
-    const [imageFile, setImageFile] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState("");
+    // ====== Categories (TomSelect) ======
+    const [categoryIds, setCategoryIds] = useState([]); // string[]
+    const categorySelectRef = useRef(null);
+    const tomRef = useRef(null);
 
+    // ====== Images ======
+    const [previews, setPreviews] = useState([]); // [{kind:'existing'|'new', url, file?}]
     const [errors, setErrors] = useState({});
     const [submitting, setSubmitting] = useState(false);
 
-    // 🔧 Chỉ “đổ lại form” khi EDIT và id thay đổi
+    // ---------- Hydrate edit ----------
     useEffect(() => {
-        if (mode !== "edit") return;
         if (!initialValues) return;
-
         setTitle(initialValues.title || "");
         setAuthor(initialValues.author || "");
         setIsbn(initialValues.isbn || "");
@@ -43,44 +46,129 @@ export default function ProductForm({
         setDescription(initialValues.description || "");
         setPrice(initialValues.price ?? "");
         setStock(initialValues.stock ?? 0);
-        setCategoryId((initialValues.category_ids && initialValues.category_ids[0]) || "");
 
-        if (initialValues.image_url) {
-            setPreviewUrl(initialValues.image_url);
+        const cat = Array.isArray(initialValues.category_ids) ? initialValues.category_ids : [];
+        setCategoryIds(cat);
+
+        const exist = [
+            ...(Array.isArray(initialValues.gallery_urls) ? initialValues.gallery_urls : []),
+            ...(initialValues.image_url ? [initialValues.image_url] : []),
+        ].filter(Boolean).map((url) => ({ kind: "existing", url }));
+        setPreviews(exist);
+    }, [initialValues?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // --- helper: đồng bộ style TomSelect với input Tailwind ---
+    const applyTomSelectTailwind = (ts) => {
+        if (!ts) return;
+        const wrapper = ts.wrapper;               // .ts-wrapper
+        const control = wrapper?.querySelector(".ts-control"); // div chính hiển thị control
+        // Wrapper: dùng focus ring khi input nằm trong control được focus
+        wrapper?.classList.add("w-full", "focus-within:ring-2", "focus-within:ring-blue-500", "rounded-lg");
+        // Control: font-size, padding, border giống input; dùng ! để override CSS TomSelect
+        control?.classList.add(
+            "bg-white",
+            "!px-3",
+            "!py-2",
+            "!rounded-lg",
+            "!border",
+            "!border-gray-300",
+            "!text-base"
+        );
+        // Input thật bên trong (để placeholder & text đồng bộ size)
+        const input = control?.querySelector("input");
+        input?.classList.add("!text-base");
+
+        // Dropdown khi mở (đồng bộ font)
+        ts.on("dropdown_open", () => {
+            ts.dropdown?.classList.add("!text-base");
+        });
+    };
+
+    // ---------- Init / Re-init TomSelect ----------
+    useEffect(() => {
+        if (!categorySelectRef.current) return;
+
+        if (tomRef.current) {
+            try { tomRef.current.destroy(); } catch { }
+            tomRef.current = null;
         }
-        // 👇 phụ thuộc vào khóa nhận diện (id) nếu có
-    }, [mode, initialValues?.id]);
 
-    // cleanup blob URL
+        const ts = new TomSelect(categorySelectRef.current, {
+            plugins: ["remove_button"],
+            persist: false,
+            create: false,
+            maxItems: null,
+            valueField: "id",
+            labelField: "name",
+            searchField: ["name"],
+            options: allCategories,
+            items: categoryIds, // set selected
+            placeholder: categoriesLoading ? "Đang tải danh mục…" : "Chọn danh mục…",
+            onChange(values) {
+                const arr = Array.isArray(values) ? values : (values ? [values] : []);
+                setCategoryIds(arr);
+            },
+            onInitialize() {
+                applyTomSelectTailwind(this);
+            },
+        });
+
+        // Phòng khi onInitialize không chạy đúng thứ tự, apply 1 lần nữa
+        applyTomSelectTailwind(ts);
+        tomRef.current = ts;
+
+        return () => {
+            try { ts.destroy(); } catch { }
+            tomRef.current = null;
+        };
+    }, [allCategories, categoriesLoading]); // chỉ re-init khi dữ liệu danh mục đổi
+
+    // Sync selected items khi categoryIds đổi (không re-init)
+    useEffect(() => {
+        if (!tomRef.current) return;
+        tomRef.current.setValue(categoryIds, true);
+    }, [categoryIds]);
+
+    // ---------- Clean blob URLs ----------
     useEffect(() => {
         return () => {
-            if (previewUrl && previewUrl.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+            previews.forEach((p) => {
+                if (p.kind === "new" && p.url?.startsWith("blob:")) URL.revokeObjectURL(p.url);
+            });
         };
-    }, [previewUrl]);
+    }, [previews]);
 
+    // ---------- Validation ----------
     const validate = () => {
         const e = {};
         if (!title.trim()) e.title = "Tên sách là bắt buộc.";
         if (price === "" || isNaN(+price) || +price < 0) e.price = "Giá phải là số ≥ 0.";
         if (stock === "" || isNaN(+stock) || +stock < 0 || !Number.isInteger(+stock)) e.stock = "Tồn kho phải là số nguyên ≥ 0.";
         if (publishedYear && (!Number.isInteger(+publishedYear) || +publishedYear < 0)) e.published_year = "Năm xuất bản không hợp lệ.";
-        if (mode === "create" && !imageFile) e.image = "Ảnh sản phẩm là bắt buộc.";
-        if (!categoryId) e.category = "Vui lòng chọn danh mục.";
+        if (categoryIds.length === 0) e.category = "Vui lòng chọn ít nhất 1 danh mục.";
+        if (mode === "create" && previews.length === 0) e.image = "Vui lòng chọn ít nhất 1 ảnh.";
         setErrors(e);
         return Object.keys(e).length === 0;
     };
 
-    const handleFileChange = (file) => {
-        setImageFile(file || null);
-        if (file) {
-            const url = URL.createObjectURL(file);
-            setPreviewUrl((prev) => {
-                if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
-                return url;
-            });
-        }
+    // ---------- Images ----------
+    const handleFilesChange = (fileList) => {
+        const incoming = Array.from(fileList || []).filter((f) => f.type?.startsWith("image/"));
+        if (!incoming.length) return;
+        const mapped = incoming.map((file) => ({ kind: "new", file, url: URL.createObjectURL(file) }));
+        setPreviews((prev) => [...prev, ...mapped]);
     };
 
+    const handleRemovePreviewAt = (idx) => {
+        setPreviews((prev) => {
+            const next = [...prev];
+            const removed = next.splice(idx, 1)[0];
+            if (removed?.kind === "new" && removed.url?.startsWith("blob:")) URL.revokeObjectURL(removed.url);
+            return next;
+        });
+    };
+
+    // ---------- Submit ----------
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validate()) return;
@@ -97,23 +185,23 @@ export default function ProductForm({
             fd.append("price", String(+price));
             fd.append("stock", String(+stock));
             fd.append("description", description.trim());
-            // giữ chuẩn như đã thống nhất với AddProduct
-            fd.append("category_ids_json", JSON.stringify(categoryId ? [categoryId] : []));
-            if (imageFile) fd.append("image", imageFile);
-
+            fd.append("category_ids_json", JSON.stringify(categoryIds));
+            const keepUrls = previews.filter((p) => p.kind === "existing").map((p) => p.url);
+            fd.append("keep_image_urls_json", JSON.stringify(keepUrls));
+            previews.filter((p) => p.kind === "new" && p.file).forEach((p) => fd.append("images", p.file));
             await onSubmit?.(fd);
         } finally {
             setSubmitting(false);
         }
     };
 
+    // ============ UI ============
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Basic info */}
             <div className="bg-white rounded-xl shadow border border-gray-200 p-4">
                 <div className="mb-4">
-                    <h2 className="text-lg font-semibold">
-                        {mode === "edit" ? "Sửa sản phẩm" : "Thêm sản phẩm"}
-                    </h2>
+                    <h2 className="text-lg font-semibold">{mode === "edit" ? "Sửa sản phẩm" : "Thêm sản phẩm"}</h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -182,7 +270,10 @@ export default function ProductForm({
                             <option value="jp">日本語</option>
                         </select>
                     </div>
+                </div>
 
+                {/* Hàng: Định dạng – Danh mục (2 cột) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
                         <label className="block text-sm font-medium mb-1">Định dạng</label>
                         <select
@@ -198,60 +289,88 @@ export default function ProductForm({
 
                     <div>
                         <label className="block text-sm font-medium mb-1">Danh mục *</label>
+                        {/* Class ở đây không quyết định, vì TomSelect sẽ thay thế; style đã được apply trong applyTomSelectTailwind */}
                         <select
-                            value={categoryId}
-                            onChange={(e) => setCategoryId(e.target.value)}
-                            className={`w-full px-3 py-2 rounded-lg border ${errors.category ? "border-red-400" : "border-gray-300"} focus:ring-2 focus:ring-blue-500`}
-                        >
-                            <option value="">-- Chọn danh mục --</option>
-                            {allCategories.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
+                            ref={categorySelectRef}
+                            multiple
+                            disabled={categoriesLoading}
+                            
+                        />
                         {errors.category && <div className="text-xs text-red-600 mt-1">{errors.category}</div>}
                     </div>
+                </div>
 
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-medium mb-1">Mô tả</label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={6}
-                            className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-                            placeholder="Mô tả nội dung sách…"
-                        />
-                    </div>
+                <div className="mt-4">
+                    <label className="block text-sm font-medium mb-1">Mô tả</label>
+                    <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={6}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                        placeholder="Mô tả nội dung sách…"
+                    />
                 </div>
             </div>
 
-            {/* Ảnh sản phẩm + Preview */}
+            {/* Images */}
             <div className="bg-white rounded-xl shadow border border-gray-200 p-4 space-y-3">
                 <label className="block text-sm font-medium mb-1">
-                    Thêm/đổi ảnh sản phẩm{mode === "edit" && initialValues.image_url ? " (đang có ảnh sẵn)" : ""}
+                    Thêm/đổi ảnh sản phẩm {mode === "edit" && previews.length > 0 ? "(đang có ảnh sẵn)" : ""}
                 </label>
+
                 <div className="flex items-center justify-center w-full">
                     <label
-                        htmlFor="dropzone-file"
+                        htmlFor="dropzone-files"
                         className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${errors.image ? "border-red-400" : "border-gray-300"}`}
                     >
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click để upload</span> hoặc kéo thả</p>
-                            <p className="text-xs text-gray-500">PNG, JPG (MAX. 2MB)</p>
+                            <p className="mb-2 text-sm text-gray-500">
+                                <span className="font-semibold">Click để upload</span> hoặc kéo thả (chọn nhiều)
+                            </p>
+                            <p className="text-xs text-gray-500">PNG, JPG (MAX. 2MB/ảnh)</p>
                         </div>
-                        <input id="dropzone-file" type="file" className="hidden" accept="image/*"
-                            onChange={(e) => handleFileChange(e.target.files?.[0])} />
+                        <input
+                            id="dropzone-files"
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            multiple
+                            onChange={(e) => handleFilesChange(e.target.files)}
+                        />
                     </label>
                 </div>
                 {errors.image && <div className="text-xs text-red-600">{errors.image}</div>}
-                {previewUrl && (
-                    <div className="border rounded-lg p-3 bg-gray-50">
-                        <div className="text-sm text-gray-600 mb-2">Ảnh đã chọn:</div>
-                        <img src={previewUrl} alt="Product image preview" className="max-h-48 w-auto object-contain mx-auto" />
+
+                {previews.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {previews.map((p, idx) => (
+                            <div key={p.url + idx} className="group relative border rounded-lg p-2 bg-gray-50">
+                                <img
+                                    src={p.url}
+                                    alt={`preview-${idx}`}
+                                    className="w-full h-36 object-contain bg-white rounded transition-transform duration-200 group-hover:scale-[1.01]"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemovePreviewAt(idx)}
+                                    className="absolute top-1.5 right-1.5 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/90 border shadow-sm
+                             opacity-0 group-hover:opacity-100 transition-opacity duration-150
+                             text-gray-700 hover:bg-white"
+                                    title="Xóa ảnh này"
+                                >
+                                    <MdClose />
+                                </button>
+                                <div
+                                    className="pointer-events-none absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                                    style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.0) 0%, rgba(0,0,0,0.06) 100%)" }}
+                                />
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
 
-            {/* Giá & tồn kho */}
+            {/* Price & stock */}
             <div className="bg-white rounded-xl shadow border border-gray-200 p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -284,6 +403,7 @@ export default function ProductForm({
                 </div>
             </div>
 
+            {/* Actions */}
             <div className="flex items-center justify-end gap-2">
                 <Link
                     to="/admin/products"

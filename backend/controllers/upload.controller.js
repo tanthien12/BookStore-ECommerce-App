@@ -1,4 +1,3 @@
-// backend/controllers/upload.controller.js
 const service = require('../services/upload.service');
 
 exports.uploadSingle = (bucket) => async (req, res, next) => {
@@ -6,10 +5,8 @@ exports.uploadSingle = (bucket) => async (req, res, next) => {
         if (!req.file) {
             return res.status(400).json({ success: false, error: true, message: "Thiếu file upload" });
         }
-        // service.uploadOne(bucket, file) nên trả { url, fileName, bucket, size?, mimetype? }
         const fileInfo = await service.uploadOne(bucket, req.file);
-        // Flatten để FE dễ dùng: { success, url, fileName, bucket }
-        return res.status(201).json({ success: true, ...fileInfo });
+        return res.status(201).json({ success: true, data: fileInfo }); // ✅ đồng bộ: data
     } catch (e) { next(e); }
 };
 
@@ -18,8 +15,8 @@ exports.uploadMultiple = (bucket) => async (req, res, next) => {
         if (!req.files?.length) {
             return res.status(400).json({ success: false, error: true, message: "Thiếu danh sách file upload" });
         }
-        const items = await service.uploadMany(bucket, req.files); // [{ url, fileName, bucket }, ...]
-        return res.status(201).json({ success: true, items });
+        const data = await service.uploadMany(bucket, req.files);
+        return res.status(201).json({ success: true, data }); // ✅ dùng data thay vì items
     } catch (e) { next(e); }
 };
 

@@ -1,81 +1,52 @@
 // routes/index.js
 const express = require("express");
 const router = express.Router();
+
 const uploadCtrl = require("../controllers/upload.controller");
-// const { makeUploader } = require("../config/multer.config");
-const { makeUploader } = require('../middlewares/upload.middleware');
+const { makeUploader } = require("../middlewares/upload.middleware");
 
+const authController = require("../controllers/auth.controller");
+const bookController = require("../controllers/book.controller");
+const categoryController = require("../controllers/category.controller");
+const orderController = require("../controllers/order.controller");
 
+// ========== AUTH ==========
+router.post("/auth/register", authController.register);
+router.post("/auth/login", authController.login);
+router.post("/auth/forgot-password", authController.forgotPassword);
+router.post("/auth/reset-password", authController.resetPassword);
 
-const AuthController = require("../controllers/auth.controller");
-const BookController = require("../controllers/book.controller");
-const categoryCtrl = require("../controllers/category.controller");
-const { validate } = require("../middlewares/validate.middleware");
-// const { authGuard } = require("../middlewares/auth.middleware");
+// ========== UPLOAD ==========
+router.post("/upload/products", makeUploader("products").single("file"), uploadCtrl.uploadSingle("products"));
+router.post("/upload/products/multiple", makeUploader("products").array("files", 10), uploadCtrl.uploadMultiple("products"));
 
-router.post("/auth/register", AuthController.register);
-router.post("/auth/login", AuthController.login);
-router.post("/auth/forgot-password", AuthController.forgotPassword);
-router.post("/auth/reset-password", AuthController.resetPassword);
+router.post("/upload/users", makeUploader("users").single("file"), uploadCtrl.uploadSingle("users"));
+router.post("/upload/users/multiple", makeUploader("users").array("files", 5), uploadCtrl.uploadMultiple("users"));
 
-// Ví dụ route bảo vệ (khi có):
-// router.get("/me", authGuard, (req, res) => res.json({ userId: req.user.id }));
+router.post("/upload/categories", makeUploader("categories").single("file"), uploadCtrl.uploadSingle("categories"));
+router.post("/upload/categories/multiple", makeUploader("categories").array("files", 10), uploadCtrl.uploadMultiple("categories"));
 
-// Upload file
-// === Upload: PRODUCTS ===
-router.post('/upload/products', makeUploader('products').single('file'), uploadCtrl.uploadSingle('products'));
-router.post('/upload/products/multiple', makeUploader('products').array('files', 10), uploadCtrl.uploadMultiple('products'));
+router.delete("/upload", uploadCtrl.remove);
 
-// === Upload: USERS (avatar) ===
-router.post('/upload/users', makeUploader('users').single('file'), uploadCtrl.uploadSingle('users'));
-router.post('/upload/users/multiple', makeUploader('users').array('files', 5), uploadCtrl.uploadMultiple('users'));
+// ========== CATEGORY ==========
+router.get("/categories", categoryController.list);
+router.get("/categories/:id", categoryController.detail);
+router.post("/categories", categoryController.create);
+router.put("/categories/:id", categoryController.update);
+router.delete("/categories/:id", categoryController.remove);
 
-// === Upload: CATEGORIES ===
-router.post('/upload/categories', makeUploader('categories').single('file'), uploadCtrl.uploadSingle('categories'));
-router.post('/upload/categories/multiple', makeUploader('categories').array('files', 10), uploadCtrl.uploadMultiple('categories'));
+// ========== ORDER ==========
+router.get("/orders", orderController.list);
+router.get("/orders/:id", orderController.detail);
+router.post("/orders", orderController.create);
+router.put("/orders/:id", orderController.update);
+router.delete("/orders/:id", orderController.remove);
 
-// Delete (body: { bucket, fileName })
-router.delete('/upload', uploadCtrl.remove);
+// ========== BOOK ==========
+router.get("/books", bookController.list); // ?q=&page=&limit=&sort=newest
+router.get("/books/:id", bookController.detail);
+router.post("/books", bookController.create);
+router.put("/books/:id", bookController.update);
+router.delete("/books/:id", bookController.remove);
 
-
-// ====== Categories ======
-router.get("/categories", categoryCtrl.list);
-router.get("/categories/:id", categoryCtrl.detail);
-router.post("/categories", express.json(), categoryCtrl.create);
-router.put("/categories/:id", express.json(), categoryCtrl.update);
-router.delete("/categories/:id", categoryCtrl.remove);
-
-
-
-// =================== BOOKS (CRUD inline) ===================
-// List (filter/paging/sort): GET /api/books?q=&category_id=&language=&format=&page=&limit=&sort=
-router.get(
-    "/books",
-    validate(BookController.schema.listSchema, "query"),
-    BookController.list
-);
-
-// Detail: GET /api/books/:id  (id: UUID)
-router.get("/books/:id", BookController.detail);
-
-// Create: POST /api/books
-// Body khớp schema: title, author?, isbn?, publisher?, published_year?, language?, format?,
-// price, stock, description?, image_url?, category_ids?: string[UUID]
-router.post(
-    "/books",
-    validate(BookController.schema.bookSchema),
-    BookController.create
-);
-
-// Update: PUT /api/books/:id
-router.put(
-    "/books/:id",
-    validate(BookController.schema.bookSchema),
-    BookController.update
-);
-
-// Delete: DELETE /api/books/:id
-router.delete("/books/:id", BookController.remove);
-
-// ----
 module.exports = router;

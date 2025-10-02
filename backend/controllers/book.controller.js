@@ -1,13 +1,16 @@
-// src/controllers/book.controller.js
+// backend/controllers/book.controller.js
 const { z } = require("zod");
 const BookService = require("../services/book.service");
 
 // Common helpers
 const optionalUrlOrEmpty = z
     .string()
-    .url({ message: "image_url phải là URL hợp lệ" })
-    .optional()
-    .or(z.literal("").transform(() => undefined));
+    .transform(v => (v === "" ? undefined : v))
+    .refine(
+        v => v === undefined || /^https?:\/\//i.test(v) || v.startsWith("/uploads/"),
+        { message: "image_url phải là URL hợp lệ hoặc đường dẫn /uploads/..." }
+    )
+    .optional();
 
 const bookSchema = z.object({
     title: z.string().min(1, "Tiêu đề bắt buộc"),
@@ -18,18 +21,17 @@ const bookSchema = z.object({
         .union([z.coerce.number().int(), z.null()])
         .optional()
         .transform((v) => (Number.isFinite(v) ? v : v ?? null)),
-    language: z.string().optional().nullable(),   // hoặc giới hạn enum nếu bạn có danh sách cố định
+    language: z.string().optional().nullable(),
     format: z
         .enum(["paperback", "hardcover", "ebook"])
         .optional()
-        .or(z.string().min(1).optional()) // nếu chưa cố định, cho phép string
+        .or(z.string().min(1).optional())
         .optional(),
     price: z.coerce.number().nonnegative().default(0),
     stock: z.coerce.number().int().nonnegative().default(0),
     description: z.string().optional().nullable(),
     image_url: optionalUrlOrEmpty,
-    gallery_urls: z.array(z.string().url()).optional(),
-    // nhận mảng UUID (string)
+    gallery_urls: z.array(optionalUrlOrEmpty).optional().default([]), // ✅ gallery_urls là array
     category_ids: z.array(z.string().uuid("category_id phải là UUID")).optional().default([]),
 });
 
@@ -43,7 +45,6 @@ const listSchema = z.object({
     sort: z.enum(["id_desc", "price_asc", "price_desc", "title_asc", "newest"]).optional(),
 });
 
-// Nếu bạn muốn validate params.id là UUID
 const paramsIdSchema = z.object({
     id: z.string().uuid("id phải là UUID hợp lệ"),
 });
@@ -57,6 +58,8 @@ module.exports = {
             const created = await BookService.create(payload);
             res.status(201).json({ success: true, data: created });
         } catch (err) { next(err); }
+        // console.log('RECEIVED GALLERY_URLS:', req.body.gallery_urls);
+        // console.log('TYPE:', typeof req.body.gallery_urls);
     },
 
     async update(req, res, next) {

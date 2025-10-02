@@ -1,4 +1,3 @@
-// src/pages/admin/AddProduct.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductForm from "../../components/admin/ProductForm";
@@ -33,7 +32,7 @@ export default function AddProduct() {
                 }
             } catch (err) {
                 console.error(err);
-                toast?.error?.("Không tải được danh mục");
+                toast.error("Không tải được danh mục");
             } finally {
                 setLoadingCats(false);
             }
@@ -46,40 +45,38 @@ export default function AddProduct() {
         try {
             const fd = formData instanceof FormData ? formData : new FormData();
 
-            // 1) Danh mục (array)
+            // 1) category_ids
             let category_ids = [];
             if (fd.has("category_ids_json")) {
                 try { category_ids = JSON.parse(fd.get("category_ids_json")) || []; } catch { category_ids = []; }
             }
 
-            // 2) Ảnh giữ lại (từ preview URL cũ khi edit; ở create thường empty)
+            // 2) ảnh giữ lại (thường create = rỗng)
             let keep_image_urls = [];
             if (fd.has("keep_image_urls_json")) {
                 try { keep_image_urls = JSON.parse(fd.get("keep_image_urls_json")) || []; } catch { keep_image_urls = []; }
             }
 
-            // 3) Upload nhiều ảnh mới (nếu có)
+            // 3) upload nhiều ảnh mới
             const files = fd.getAll("images").filter(Boolean);
             let uploadedUrls = [];
             if (files.length > 0) {
                 const upFd = new FormData();
-                // BE routes: /upload/products/multiple (field 'files' hoặc 'file' — mình chọn 'files')
-                files.forEach((f) => upFd.append("files", f));
+                files.forEach((f) => upFd.append("files", f)); // BE: array('files', 10)
                 const upRes = await fetch(summaryApi.url(summaryApi.upload.product.multiple), {
                     method: "POST",
                     body: upFd,
                 });
                 if (!upRes.ok) throw new Error(`Upload images failed: ${upRes.status}`);
                 const upJson = await upRes.json();
-                // chấp nhận dạng {success, data:[{url}]} hoặc {success, urls:[...]}
                 const arr = upJson?.data || upJson?.urls || [];
                 uploadedUrls = arr.map((x) => x.url || x).filter(Boolean);
             }
 
-            // Gộp ảnh cũ cần giữ + ảnh mới upload
+            // 4) gộp ảnh
             const allImageUrls = [...keep_image_urls, ...uploadedUrls];
 
-            // 4) Các field khác
+            // 5) fields khác
             const title = fd.get("title") || "";
             const author = fd.get("author") || "";
             const isbn = fd.get("isbn") || "";
@@ -91,8 +88,7 @@ export default function AddProduct() {
             const stock = toInt(fd.get("stock"), 0);
             const description = fd.get("description") || "";
 
-            // 5) Payload gửi BE
-            // Giữ tương thích: image_url (ảnh chính = ảnh đầu tiên), và thêm gallery_urls (mảng)
+            // 6) payload — luôn gửi gallery_urls là mảng
             const payload = {
                 title,
                 author: author || null,
@@ -104,9 +100,9 @@ export default function AddProduct() {
                 price,
                 stock,
                 description: description || null,
-                image_url: allImageUrls[0] || undefined,  // ảnh đại diện
-                gallery_urls: allImageUrls.length > 1 ? allImageUrls : undefined, // mảng ảnh
-                category_ids, // UUID[]
+                image_url: allImageUrls[0] || undefined,   // ảnh đại diện
+                gallery_urls: allImageUrls,                 // ✅ luôn là array
+                category_ids,                               // UUID[]
             };
 
             const res = await fetch(summaryApi.url(summaryApi.book.create), {
@@ -120,13 +116,14 @@ export default function AddProduct() {
                 const msg = errJson?.message || `Tạo sách thất bại (${res.status})`;
                 throw new Error(msg);
             }
+            //test
+            // console.log('payload:', payload);
 
-            toast?.success?.("Đã tạo sách thành công");
+            toast.success("Đã tạo sách thành công");
             nav("/admin/products");
         } catch (err) {
             console.error(err);
-            toast?.error?.(err.message || "Lỗi tạo sách");
-            alert(err.message || "Lỗi tạo sách");
+            toast.error(err.message || "Lỗi tạo sách");
         }
     };
 

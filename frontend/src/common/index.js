@@ -56,6 +56,14 @@ const summaryApi = {
     update: (id) => `/categories/${id}`,// PUT
     delete: (id) => `/categories/${id}`,// DELETE
   },
+  // ====== Order ======
+  order: {
+    list: "/orders",                // GET ?q=&status=&page=&limit=
+    detail: (id) => `/orders/${id}`,// GET by id
+    create: "/orders",              // POST
+    update: (id) => `/orders/${id}`,// PUT
+    delete: (id) => `/orders/${id}`,// DELETE
+  },
 
   // ====== Tiện ích: tạo full URL nhanh ======
   url: (path) => {

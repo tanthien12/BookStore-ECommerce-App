@@ -16,6 +16,9 @@ import AddProduct from '../pages/admin/AddProduct.jsx';
 import AddCategory from '../pages/admin/AddCategory.jsx';
 import EditCategory from '../pages/admin/EditCategory.jsx';
 import DashboardAdmin from '../pages/admin/DashboardAdmin.jsx';
+import OrderDetail from '../pages/admin/OrderDetail.jsx';
+import EditOrder from '../pages/admin/EditOrder.jsx';
+import AddOrder from '../pages/admin/AddOrder.jsx';
 
 const router = createBrowserRouter([
     {
@@ -61,7 +64,10 @@ const router = createBrowserRouter([
                     { path: "categories-add", element: <AddCategory /> }, // /admin/categories-add
                     { path: "categories-edit/:id", element: <EditCategory /> }, // /admin/categories-edit/:id
 
-                    { path: "orders", element: <OrderList /> }, // /admin/orders
+                    { path: "orders", element: <OrderList /> },
+                    { path: "orders-add", element: <AddOrder /> },
+                    { path: "orders-edit/:id", element: <EditOrder /> },
+                    { path: "orders-detail/:id", element: <OrderDetail /> },
 
                     // { path: "users", element: <UserList /> }, // /admin/users
                 ],

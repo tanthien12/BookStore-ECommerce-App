@@ -1,4 +1,3 @@
-// src/pages/admin/EditProduct.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -6,7 +5,7 @@ import ProductForm from "../../components/admin/ProductForm";
 import summaryApi from "../../common";
 
 export default function EditProduct() {
-    const { id } = useParams(); // id của sách từ URL
+    const { id } = useParams();
     const nav = useNavigate();
 
     const [categories, setCategories] = useState([]);
@@ -55,7 +54,15 @@ export default function EditProduct() {
                 if (!res.ok) throw new Error(`Fetch book failed: ${res.status}`);
                 const data = await res.json();
                 if (!ignore) {
-                    setProduct(data.data || null);
+                    if (data.data) {
+                        const book = data.data;
+                        setProduct({
+                            ...book,
+                            category_ids: (book.categories || []).map(c => c.id), // ✅ map ra array id
+                        });
+                    } else {
+                        setProduct(null);
+                    }
                 }
             } catch (err) {
                 console.error(err);
@@ -78,7 +85,7 @@ export default function EditProduct() {
                 try { category_ids = JSON.parse(fd.get("category_ids_json")) || []; } catch { category_ids = []; }
             }
 
-            // keep ảnh cũ
+            // giữ ảnh cũ
             let keep_image_urls = [];
             if (fd.has("keep_image_urls_json")) {
                 try { keep_image_urls = JSON.parse(fd.get("keep_image_urls_json")) || []; } catch { keep_image_urls = []; }
@@ -100,10 +107,10 @@ export default function EditProduct() {
                 uploadedUrls = arr.map((x) => x.url || x).filter(Boolean);
             }
 
-            // gộp ảnh cũ + ảnh mới
+            // gộp ảnh
             const allImageUrls = [...keep_image_urls, ...uploadedUrls];
 
-            // các field khác
+            // fields khác
             const title = fd.get("title") || "";
             const author = fd.get("author") || "";
             const isbn = fd.get("isbn") || "";
@@ -126,8 +133,8 @@ export default function EditProduct() {
                 price,
                 stock,
                 description: description || null,
-                image_url: allImageUrls[0] || undefined,  // ảnh chính
-                gallery_urls: allImageUrls.length > 1 ? allImageUrls : undefined,
+                image_url: allImageUrls[0] || undefined,
+                gallery_urls: allImageUrls,       // ✅ luôn là array
                 category_ids,
             };
 
@@ -151,13 +158,8 @@ export default function EditProduct() {
         }
     };
 
-    if (loadingProduct) {
-        return <div className="p-4">Đang tải dữ liệu…</div>;
-    }
-
-    if (!product) {
-        return <div className="p-4 text-red-600">Không tìm thấy sách.</div>;
-    }
+    if (loadingProduct) return <div className="p-4">Đang tải dữ liệu…</div>;
+    if (!product) return <div className="p-4 text-red-600">Không tìm thấy sách.</div>;
 
     return (
         <ProductForm

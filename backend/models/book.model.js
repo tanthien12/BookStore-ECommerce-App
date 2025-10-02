@@ -1,44 +1,24 @@
-// src/models/book.model.js
+// backend/models/book.model.js
 const { pool } = require("../config/db.config");
 
-/**
- * Book table (UUID):
- *  id UUID PK DEFAULT gen_random_uuid(),
- *  title TEXT NOT NULL,
- *  author TEXT,
- *  isbn TEXT,
- *  publisher TEXT,
- *  published_year INT,
- *  language TEXT,
- *  format TEXT,       // paperback|hardcover|ebook
- *  price NUMERIC(12,2) NOT NULL,
- *  stock INT NOT NULL DEFAULT 0,
- *  description TEXT,
- *  image_url TEXT,
- *  rating_avg NUMERIC(3,2) DEFAULT 0,
- *  rating_count INT DEFAULT 0,
- *  created_at, updated_at TIMESTAMPTZ
- */
+function mapRow(row) {
+    if (!row) return null;
+    // Không cần alias nữa, DB đã có cột gallery_urls
+    return { ...row, gallery_urls: row.gallery_urls || [] };
+}
+
 const BookModel = {
-    /**
-     * Tạo mới Book từ payload form
-     * payload: {
-     *   title, author, isbn, publisher, published_year, language, format,
-     *   price, stock, description, image_url
-     * }
-     * return: row (với id UUID) 
-     */
     async create(payload) {
         const text = `
-      INSERT INTO book (
+      INSERT INTO bookstore.book (
         title, author, isbn, publisher, published_year, language, format,
-        price, stock, description, image_url, created_at, updated_at
+        price, stock, description, image_url, gallery_urls, created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7,
-        $8, $9, $10, $11, NOW(), NOW()
+        $1,$2,$3,$4,$5,$6,$7,
+        $8,$9,$10,$11,$12,NOW(),NOW()
       )
       RETURNING id, title, author, isbn, publisher, published_year, language, format,
-                price, stock, description, image_url, rating_avg, rating_count,
+                price, stock, description, image_url, gallery_urls, rating_avg, rating_count,
                 created_at, updated_at
     `;
         const values = [
@@ -53,18 +33,15 @@ const BookModel = {
             payload.stock ?? 0,
             payload.description ?? null,
             payload.image_url ?? null,
+            Array.isArray(payload.gallery_urls) ? payload.gallery_urls : null,
         ];
         const { rows } = await pool.query(text, values);
-        return rows[0];
+        return mapRow(rows[0]);
     },
 
-    /**
-     * Cập nhật Book theo id (UUID)
-     * payload giống create()
-     */
     async update(id, payload) {
         const text = `
-      UPDATE book
+      UPDATE bookstore.book
       SET
         title = $2,
         author = $3,
@@ -77,10 +54,11 @@ const BookModel = {
         stock = $10,
         description = $11,
         image_url = $12,
+        gallery_urls = $13,
         updated_at = NOW()
       WHERE id = $1
       RETURNING id, title, author, isbn, publisher, published_year, language, format,
-                price, stock, description, image_url, rating_avg, rating_count,
+                price, stock, description, image_url, gallery_urls, rating_avg, rating_count,
                 created_at, updated_at
     `;
         const values = [
@@ -96,45 +74,41 @@ const BookModel = {
             payload.stock ?? 0,
             payload.description ?? null,
             payload.image_url ?? null,
+            Array.isArray(payload.gallery_urls) ? payload.gallery_urls : null,
         ];
         const { rows } = await pool.query(text, values);
-        return rows[0] || null;
+        return mapRow(rows[0]) || null;
     },
 
     async remove(id) {
-        // Xóa liên kết trước để tránh FK error
-        await pool.query("DELETE FROM books_categories WHERE book_id = $1", [id]);
-        const { rowCount } = await pool.query("DELETE FROM book WHERE id = $1", [id]);
+        await pool.query("DELETE FROM bookstore.books_categories WHERE book_id = $1", [id]);
+        const { rowCount } = await pool.query("DELETE FROM bookstore.book WHERE id = $1", [id]);
         return rowCount > 0;
     },
 
     async findById(id) {
         const bookSql = `
       SELECT id, title, author, isbn, publisher, published_year, language, format,
-             price, stock, description, image_url, rating_avg, rating_count,
+             price, stock, description, image_url, gallery_urls, rating_avg, rating_count,
              created_at, updated_at
-      FROM book
+      FROM bookstore.book
       WHERE id = $1
     `;
         const catSql = `
       SELECT c.id, c.name, c.slug
-      FROM books_categories bc
-      JOIN category c ON c.id = bc.category_id
+      FROM bookstore.books_categories bc
+      JOIN bookstore.category c ON c.id = bc.category_id
       WHERE bc.book_id = $1
     `;
         const [b, cats] = await Promise.all([
             pool.query(bookSql, [id]),
             pool.query(catSql, [id]),
         ]);
-        const book = b.rows[0];
+        const book = mapRow(b.rows[0]);
         if (!book) return null;
         return { ...book, categories: cats.rows };
     },
 
-    /**
-     * List + filter (tùy chọn): q, category_id (UUID), language, format, page, limit, sort
-     * sort: id_desc | price_asc | price_desc | title_asc | newest
-     */
     async list({ q, category_id, language, format, page = 1, limit = 12, sort = "id_desc" }) {
         const offset = (page - 1) * limit;
         const values = [];
@@ -146,7 +120,7 @@ const BookModel = {
             where.push(`(b.title ILIKE $${values.length} OR b.author ILIKE $${values.length} OR b.isbn ILIKE $${values.length} OR b.publisher ILIKE $${values.length})`);
         }
         if (category_id) {
-            joins += " JOIN books_categories bc ON bc.book_id = b.id ";
+            joins += " JOIN bookstore.books_categories bc ON bc.book_id = b.id ";
             values.push(category_id);
             where.push(`bc.category_id = $${values.length}`);
         }
@@ -168,9 +142,9 @@ const BookModel = {
 
         const listSql = `
       SELECT b.id, b.title, b.author, b.isbn, b.publisher, b.published_year,
-             b.language, b.format, b.price, b.stock, b.image_url, b.rating_avg, b.rating_count,
-             b.created_at, b.updated_at
-      FROM book b
+             b.language, b.format, b.price, b.stock, b.image_url, b.gallery_urls,
+             b.rating_avg, b.rating_count, b.created_at, b.updated_at
+      FROM bookstore.book b
       ${joins}
       ${whereSql}
       ORDER BY ${orderBy}
@@ -178,7 +152,7 @@ const BookModel = {
     `;
         const countSql = `
       SELECT COUNT(DISTINCT b.id) AS count
-      FROM book b
+      FROM bookstore.book b
       ${joins}
       ${whereSql}
     `;
@@ -187,23 +161,21 @@ const BookModel = {
             pool.query(listSql, values),
             pool.query(countSql, values),
         ]);
-        return { items: list.rows, total: +count.rows[0].count };
+
+        const items = list.rows.map(mapRow);
+        return { items, total: +count.rows[0].count };
     },
 
-    /**
-     * Gắn danh mục cho sách
-     * category_ids: UUID[]
-     */
     async setCategories(book_id, category_ids = []) {
         const client = await pool.connect();
         try {
             await client.query("BEGIN");
-            await client.query("DELETE FROM books_categories WHERE book_id = $1", [book_id]);
+            await client.query("DELETE FROM bookstore.books_categories WHERE book_id = $1", [book_id]);
             for (const cid of category_ids) {
                 await client.query(
-                    `INSERT INTO books_categories (book_id, category_id)
-           VALUES ($1, $2)
-           ON CONFLICT DO NOTHING`,
+                    `INSERT INTO bookstore.books_categories (book_id, category_id)
+                     VALUES ($1, $2)
+                     ON CONFLICT DO NOTHING`,
                     [book_id, cid]
                 );
             }

@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { CATEGORIES, slugify } from "../data/categoryData";
 import { products as ALL } from "../data/products";
 import { FiChevronDown } from "react-icons/fi";
+import { useCart } from "../context/CartContext";
+import { computeDiscount } from "../helpers/productHelper";
 
 /* =========================
    CẤU HÌNH LỌC (UI + LOGIC)
@@ -347,7 +349,7 @@ export default function CategoryPage() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {list.map((p) => (
-                <ProductCard key={p.id} p={p} />
+                <ProductCard key={p.id} p={p} showDiscount />
               ))}
             </div>
           )}

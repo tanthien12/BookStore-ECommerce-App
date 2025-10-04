@@ -64,7 +64,7 @@ const NavIcon = memo(({ icon: Icon, label, onClick, badge, active }) => (
 NavIcon.displayName = "NavIcon";
 
 const Logo = () => (
-  <a href="#" className="shrink-0 select-none group">
+  <a href="/" className="shrink-0 select-none group">
     <span className="text-2xl font-extrabold tracking-tight text-red-600 group-hover:text-red-700 transition-colors">
       BookStore<span className="text-gray-900 dark:text-white">.com</span>
     </span>

@@ -22,6 +22,9 @@ import AddOrder from '../pages/admin/AddOrder.jsx';
 import UserList from '../pages/admin/UserList.jsx';
 import AddUser from '../pages/admin/AddUser.jsx';
 import EditUser from '../pages/admin/EditUser.jsx';
+import ProductDetail from '../pages/ProductDetail.jsx';
+import CartPage from '../pages/CartPage.jsx';
+import CategoryPage from '../pages/CategoryPage.jsx';
 
 const router = createBrowserRouter([
     {
@@ -29,9 +32,25 @@ const router = createBrowserRouter([
         element: <App />,
         children: [
             {
-                path: "",
+                path: "/",
                 element: <Home />
             },
+            // them moi
+            {
+                path: "/product/:id",
+                element: <ProductDetail />
+            },
+
+            {
+                path: '/category/:categoryId/:subSlug?',
+                element: <CategoryPage />
+            },
+            {
+                path: '/cart',
+                element: <CartPage />
+            },
+            // ket thuc them moi
+
             {
                 path: "login",
                 element: <Login />

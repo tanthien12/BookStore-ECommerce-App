@@ -17,5 +17,15 @@ function authGuard(req, res, next) {
         return res.status(401).json({ message: "Token không hợp lệ hoặc đã hết hạn", error: true, success: false });
     }
 }
+function requireRole(...roles) {
+    return (req, res, next) => {
+        // req.user được gán từ requireAuth sau khi verify JWT
+        const userRole = req.user?.role_name || req.user?.role; // tuỳ bạn map
+        if (!userRole || !roles.includes(userRole)) {
+            return res.status(403).json({ success: false, message: 'Không đủ quyền' });
+        }
+        next();
+    };
+}
 
-module.exports = { authGuard };
+module.exports = { authGuard, requireRole };

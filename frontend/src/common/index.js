@@ -65,6 +65,21 @@ const summaryApi = {
     delete: (id) => `/orders/${id}`,// DELETE
   },
 
+  // ====== Admin: Users ======
+  user: {
+    list: "/admin/users",                 // GET ?q=&page=&limit=&sort=newest&role_id=&is_active=&created_from=&created_to=
+    detail: (id) => `/admin/users/${id}`, // GET
+    create: "/admin/users",               // POST  {name,email,password,role_id,is_active?,avatar_url?}
+    update: (id) => `/admin/users/${id}`, // PUT/PATCH {name?,email?,role_id?,is_active?,avatar_url?}
+    resetPassword: (id) => `/admin/users/${id}/reset-password`, // POST {password?}
+    bulk: "/admin/users/bulk",            // POST {action: 'activate'|'deactivate'|'assignRole'|'resetPassword', ids:[], role_id?}
+  },
+
+  // ====== Admin: Roles (tùy chọn) ======
+  role: {
+    list: "/admin/roles",                 // GET ?withCounts=true|false
+  },
+
   // ====== Tiện ích: tạo full URL nhanh ======
   url: (path) => {
     // Ghép URL an toàn, tránh // trùng

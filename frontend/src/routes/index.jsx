@@ -19,6 +19,9 @@ import DashboardAdmin from '../pages/admin/DashboardAdmin.jsx';
 import OrderDetail from '../pages/admin/OrderDetail.jsx';
 import EditOrder from '../pages/admin/EditOrder.jsx';
 import AddOrder from '../pages/admin/AddOrder.jsx';
+import UserList from '../pages/admin/UserList.jsx';
+import AddUser from '../pages/admin/AddUser.jsx';
+import EditUser from '../pages/admin/EditUser.jsx';
 
 const router = createBrowserRouter([
     {
@@ -68,6 +71,10 @@ const router = createBrowserRouter([
                     { path: "orders-add", element: <AddOrder /> },
                     { path: "orders-edit/:id", element: <EditOrder /> },
                     { path: "orders-detail/:id", element: <OrderDetail /> },
+
+                    { path: "users", element: <UserList /> }, // /admin/users
+                    { path: "users-add", element: <AddUser /> }, // /admin/users-add
+                    { path: "users-edit/:id", element: <EditUser /> }, // /admin/users-edit/:id
 
                     // { path: "users", element: <UserList /> }, // /admin/users
                 ],

@@ -10,6 +10,9 @@ const bookController = require("../controllers/book.controller");
 const categoryController = require("../controllers/category.controller");
 const orderController = require("../controllers/order.controller");
 
+const { authGuard: requireAuth, requireRole } = require("../middlewares/auth.middleware");
+const adminUserCtrl = require("../controllers/admin.user.controller");
+const adminRoleCtrl = require("../controllers/admin.role.controller");
 // ========== AUTH ==========
 router.post("/auth/register", authController.register);
 router.post("/auth/login", authController.login);
@@ -48,5 +51,23 @@ router.get("/books/:id", bookController.detail);
 router.post("/books", bookController.create);
 router.put("/books/:id", bookController.update);
 router.delete("/books/:id", bookController.remove);
+
+// ===== Admin: Users =====
+// router.get('/admin/users', requireAuth, requireRole('admin'), adminUserCtrl.list);
+// router.get('/admin/users/:id', requireAuth, requireRole('admin'), adminUserCtrl.getOne);
+// router.post('/admin/users', requireAuth, requireRole('admin'), adminUserCtrl.create);
+// router.put('/admin/users/:id', requireAuth, requireRole('admin'), adminUserCtrl.update);
+// router.post('/admin/users/:id/reset-password', requireAuth, requireRole('admin'), adminUserCtrl.resetPassword);
+// router.post('/admin/users/bulk', requireAuth, requireRole('admin'), adminUserCtrl.bulk);
+router.get('/admin/users', adminUserCtrl.list);
+router.get('/admin/users/:id', adminUserCtrl.getOne);
+router.post('/admin/users', adminUserCtrl.create);
+router.put('/admin/users/:id', adminUserCtrl.update);
+router.post('/admin/users/:id/reset-password', adminUserCtrl.resetPassword);
+router.post('/admin/users/bulk', adminUserCtrl.bulk);
+
+// ===== Admin: Roles =====
+// router.get('/admin/roles', requireAuth, requireRole('admin'), adminRoleCtrl.list);
+router.get('/admin/roles', adminRoleCtrl.list);
 
 module.exports = router;

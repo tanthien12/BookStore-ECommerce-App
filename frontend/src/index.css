@@ -1,5 +1,8 @@
 @import "tailwindcss";
 /* @import "@tailwindcss/line-clamp"; */
+
+
+
 @import "tom-select/dist/css/tom-select.css";
 
 @layer utilities {
@@ -25,6 +28,18 @@
         /* hiển thị tối đa 3 dòng */
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-4px) scale(0.98);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
     }
 }
 

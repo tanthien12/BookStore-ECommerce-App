@@ -245,9 +245,39 @@ async function resetPassword({ token, newPassword }) {
     return { ok: true };
 }
 
+async function logout({ refreshToken, meta }) {
+    // Trường hợp stateless: không có refreshToken -> chỉ cần trả OK để FE xoá token
+    if (!refreshToken) return { ok: true };
+
+    // Nếu dự án chưa lưu refresh token trong DB, phần dưới vẫn an toàn (try/catch)
+    try {
+        // Xác thực refreshToken để lấy userId (sub)
+        const payload = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET);
+        const userId = payload?.sub;
+
+        // Nếu có cơ chế lưu refresh token, hãy revoke theo token hash
+        // (tùy bạn hiện đang lưu ở đâu: bảng user_refresh_tokens,…)
+        // Ta hash token để không lưu thô vào DB:
+        const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
+        // Gợi ý API trong model (tuỳ bạn hiện thực trong User model):
+        // - User.revokeRefreshTokenByHash(hash, userId, meta)
+        // Nếu chưa có, có thể bỏ qua không lỗi.
+        if (typeof User.revokeRefreshTokenByHash === "function") {
+            await User.revokeRefreshTokenByHash(tokenHash, userId, meta);
+        }
+    } catch (e) {
+        // Token không hợp lệ/hết hạn -> vẫn coi như đã đăng xuất (idempotent)
+    }
+
+    return { ok: true };
+}
+
+
 module.exports = {
     register,
     login,
     forgotPassword,
     resetPassword,
+    logout,
 };

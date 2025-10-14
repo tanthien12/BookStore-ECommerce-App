@@ -25,6 +25,8 @@ import EditUser from '../pages/admin/EditUser.jsx';
 import ProductDetail from '../pages/ProductDetail.jsx';
 import CartPage from '../pages/CartPage.jsx';
 import CategoryPage from '../pages/CategoryPage.jsx';
+// import { patch } from '../../../backend/routes/index.js';
+import AccountLayout from '../pages/profile/AccountLayout.jsx';
 
 const router = createBrowserRouter([
     {
@@ -71,6 +73,10 @@ const router = createBrowserRouter([
                 path: "reset-password",
                 element: <AuthRecover />
             },
+            {
+                path: "account",
+                element: <AccountLayout />
+            },
 
             // ========== Admin Routes ==========
             {
@@ -98,6 +104,7 @@ const router = createBrowserRouter([
                     // { path: "users", element: <UserList /> }, // /admin/users
                 ],
             },
+
         ]
     }
 ])

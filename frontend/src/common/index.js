@@ -20,7 +20,7 @@ const summaryApi = {
     resetPassword: "/auth/reset-password",
     me: "/me", // cần header Authorization: Bearer <token>
     // refresh: "/auth/refresh",
-    // logout: "/auth/logout",
+    logout: "/auth/logout",
   },
 
   upload: {

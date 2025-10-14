@@ -23,6 +23,12 @@ const ResetSchema = z.object({
     newPassword: z.string().min(6, "Mật khẩu tối thiểu 6 ký tự"),
 });
 
+const LogoutSchema = z.object({
+    // Cho phép không truyền refreshToken (stateless). Nếu có, ta sẽ revoke (stateful).
+    refreshToken: z.string().min(1).optional(),
+});
+
+
 async function register(req, res, next) {
     try {
         const data = RegisterSchema.parse(req.body);
@@ -82,4 +88,30 @@ async function resetPassword(req, res, next) {
     }
 }
 
-module.exports = { register, login, forgotPassword, resetPassword };
+async function logout(req, res, next) {
+    try {
+        const { refreshToken } = LogoutSchema.parse(req.body ?? {});
+        await AuthService.logout({
+            refreshToken,
+            meta: {
+                ip: req.ip,
+                ua: req.get("user-agent") || "",
+            },
+        });
+        res.json({
+            message: "Đăng xuất thành công",
+            error: false,
+            success: true,
+        });
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = {
+    register,
+    login,
+    forgotPassword,
+    resetPassword,
+    logout
+};

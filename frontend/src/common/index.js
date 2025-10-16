@@ -80,6 +80,34 @@ const summaryApi = {
     list: "/admin/roles",                 // GET ?withCounts=true|false
   },
 
+  // ====== Account (tài khoản hiện tại) ======
+  account: {
+    profile: "/me",
+    update: "/me",
+    changePassword: "/me/password",
+    stats: "/me/quick-stats",
+    // myOrders: "/me/orders",
+  },
+  ordersMe: {
+    list: "/me/orders",
+    detail: (id) => `/me/orders/${id}`,
+    cancel: (id) => `/me/orders/${id}/cancel`,
+  },
+  address: {
+    list: "/me/addresses",
+    create: "/me/addresses",
+    update: (id) => `/me/addresses/${id}`,
+    delete: (id) => `/me/addresses/${id}`,
+  },
+  wishlist: {
+    list: "/me/wishlist",
+    add: (bookId) => `/me/wishlist/${bookId}`,
+    remove: (bookId) => `/me/wishlist/${bookId}`,
+  },
+  voucher: {
+    available: "/me/vouchers",
+    used: "/me/vouchers/used",
+  },
   // ====== Tiện ích: tạo full URL nhanh ======
   url: (path) => {
     // Ghép URL an toàn, tránh // trùng

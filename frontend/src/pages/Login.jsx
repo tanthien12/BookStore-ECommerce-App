@@ -258,19 +258,23 @@ export default function Login() {
             // ✅ LƯU TOKEN + USER CHO HEADER
             // ================================
             // Hỗ trợ nhiều kiểu response: {accessToken,user} hoặc {token,user} hoặc {data:{accessToken,user}}
-            const accessToken =
-                data?.accessToken ||
-                data?.token ||
-                data?.data?.accessToken ||
-                data?.data?.token ||
-                null;
+            // const accessToken =
+            //     data?.accessToken ||
+            //     data?.token ||
+            //     data?.data?.accessToken ||
+            //     data?.data?.token ||
+            //     null;
 
-            const user =
-                data?.user ||
-                data?.profile ||
-                data?.data?.user ||
-                data?.data?.profile ||
-                null;
+            // const user =
+            //     data?.user ||
+            //     data?.profile ||
+            //     data?.data?.user ||
+            //     data?.data?.profile ||
+            //     null;
+            // ✅ LƯU TOKEN USER CHO HEADER (chuẩn theo backend hiện tại)
+            // Response: { success, data: { user, tokens: { accessToken, refreshToken } } }
+            const accessToken = data?.data?.tokens?.accessToken || null;
+            const user = data?.data?.user || null;
 
             // Chỉ định dạng object đơn giản để Header đọc ra tên + role
             if (user) {

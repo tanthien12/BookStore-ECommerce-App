@@ -1,7 +1,8 @@
 // backend/services/user.service.js
 const bcrypt = require('bcrypt');
 const userModel = require('../models/user.model');
-
+const { findById } = require('../models/order.model');
+const { pool } = require("../config/db.config");
 const SALT_ROUNDS = 10;
 
 function genTempPassword(length = 12) {
@@ -74,6 +75,10 @@ async function bulkAction({ action, ids, role_id }) {
         default:
             throw new Error('Hành động không hợp lệ');
     }
+
+    // bổ sung nếu cần
+    // backend/services/user.service.js (bổ sung nếu chưa có)
+
 }
 
 module.exports = {

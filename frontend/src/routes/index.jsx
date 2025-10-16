@@ -26,7 +26,14 @@ import ProductDetail from '../pages/ProductDetail.jsx';
 import CartPage from '../pages/CartPage.jsx';
 import CategoryPage from '../pages/CategoryPage.jsx';
 // import { patch } from '../../../backend/routes/index.js';
-import AccountLayout from '../pages/profile/AccountLayout.jsx';
+import AccountLayout from '../pages/user/AccountLayout.jsx';
+import Profile from '../pages/user/Profile.jsx';
+import Orders from '../pages/user/Orders.jsx';
+import Wishlist from '../pages/user/Wishlist.jsx';
+import AddressBook from '../pages/user/AddressBook.jsx';
+import Vouchers from '../pages/user/Vouchers.jsx';
+import Security from '../pages/user/Security.jsx';
+import Support from '../pages/user/Support.jsx';
 
 const router = createBrowserRouter([
     {
@@ -75,7 +82,16 @@ const router = createBrowserRouter([
             },
             {
                 path: "account",
-                element: <AccountLayout />
+                element: <AccountLayout />,
+                children: [
+                    { index: true, element: <Profile /> },
+                    { path: "orders", element: <Orders /> },
+                    { path: "wishlist", element: <Wishlist /> },
+                    { path: "addresses", element: <AddressBook /> },
+                    { path: "vouchers", element: <Vouchers /> },
+                    { path: "security", element: <Security /> },
+                    { path: "support", element: <Support /> },
+                ],
             },
 
             // ========== Admin Routes ==========

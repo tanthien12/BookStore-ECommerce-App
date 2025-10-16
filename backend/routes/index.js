@@ -13,6 +13,10 @@ const orderController = require("../controllers/order.controller");
 const { authGuard: requireAuth, requireRole } = require("../middlewares/auth.middleware");
 const adminUserCtrl = require("../controllers/admin.user.controller");
 const adminRoleCtrl = require("../controllers/admin.role.controller");
+const AccountController = require("../controllers/account.controller");
+const AddressController = require("../controllers/address.controller");
+const WishlistController = require("../controllers/wishlist.controller");
+const VoucherController = require("../controllers/voucher.controller");
 // ========== AUTH ==========
 router.post("/auth/register", authController.register);
 router.post("/auth/login", authController.login);
@@ -71,4 +75,35 @@ router.post('/admin/users/bulk', adminUserCtrl.bulk);
 // router.get('/admin/roles', requireAuth, requireRole('admin'), adminRoleCtrl.list);
 router.get('/admin/roles', adminRoleCtrl.list);
 
+// Account (cần đăng nhập)
+// router.get('/me', requireAuth, AccountController.me);
+// router.put('/me', requireAuth, AccountController.updateMe);
+// router.put('/me/password', requireAuth, AccountController.changePassword);
+// router.get('/me/orders', requireAuth, AccountController.myOrders);
+
+// Account center
+router.get('/me', requireAuth, AccountController.me);
+router.put('/me', requireAuth, AccountController.updateMe);
+router.put('/me/password', requireAuth, AccountController.changePassword);
+router.get("/me/quick-stats", requireAuth, AccountController.quickStats);
+
+// Orders (của tôi)
+router.get('/me/orders', requireAuth, AccountController.myOrders);
+router.get('/me/orders/:id', requireAuth, orderController.detailMine);     // CHI TIẾT ĐƠN CỦA TÔI
+router.post('/me/orders/:id/cancel', requireAuth, orderController.cancelMine); // HỦY ĐƠN (nếu cho phép)
+
+// Address book
+router.get('/me/addresses', requireAuth, AddressController.list);
+router.post('/me/addresses', requireAuth, AddressController.create);
+router.put('/me/addresses/:id', requireAuth, AddressController.update);
+router.delete('/me/addresses/:id', requireAuth, AddressController.remove);
+
+// Wishlist
+router.get('/me/wishlist', requireAuth, WishlistController.list);
+router.post('/me/wishlist/:bookId', requireAuth, WishlistController.add);
+router.delete('/me/wishlist/:bookId', requireAuth, WishlistController.remove);
+
+// Vouchers
+router.get('/me/vouchers', requireAuth, VoucherController.available); // đang hoạt động + hợp lệ
+router.get('/me/vouchers/used', requireAuth, VoucherController.used);  // đã dùng
 module.exports = router;

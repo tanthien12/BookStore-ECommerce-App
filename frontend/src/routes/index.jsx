@@ -34,6 +34,7 @@ import AddressBook from '../pages/user/AddressBook.jsx';
 import Vouchers from '../pages/user/Vouchers.jsx';
 import Security from '../pages/user/Security.jsx';
 import Support from '../pages/user/Support.jsx';
+import SearchResult from '../pages/user/SearchResult.jsx';
 
 const router = createBrowserRouter([
     {
@@ -57,6 +58,10 @@ const router = createBrowserRouter([
             {
                 path: '/cart',
                 element: <CartPage />
+            },
+            {
+                path: '/search',
+                element: <SearchResult />
             },
             // ket thuc them moi
 

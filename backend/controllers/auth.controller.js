@@ -3,6 +3,9 @@ const { z } = require("zod");
 const AuthService = require("../services/auth.service");
 
 // Schemas
+const GoogleLoginSchema = z.object({
+    id_token: z.string().min(1, "Thiếu id_token"),
+});
 const RegisterSchema = z.object({
     name: z.string().min(1, "Tên không được để trống"),
     email: z.string().email("Email không hợp lệ"),
@@ -108,10 +111,26 @@ async function logout(req, res, next) {
     }
 }
 
+async function googleLogin(req, res, next) {
+    try {
+        const data = GoogleLoginSchema.parse(req.body);
+        const result = await AuthService.googleLogin(data);
+        res.json({
+            message: "Đăng nhập Google thành công",
+            data: result,
+            error: false,
+            success: true,
+        });
+    } catch (err) {
+        next(err);
+    }
+}
+
 module.exports = {
     register,
     login,
     forgotPassword,
     resetPassword,
-    logout
+    logout,
+    googleLogin,
 };

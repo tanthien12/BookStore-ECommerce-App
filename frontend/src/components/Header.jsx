@@ -555,6 +555,10 @@ import { useDispatch } from "react-redux";
 // import { setUserDetails } from "../../store/userSlice";
 import { toast } from 'react-toastify';
 import { setUserDetails } from "../store/userSlice";
+import ChatLauncher from "./chatbot/ChatLauncher";
+
+// import ChatLauncher from "@/components/chatbot/ChatLauncher";
+// <ChatLauncher />
 
 
 

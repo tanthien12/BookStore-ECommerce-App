@@ -3,6 +3,23 @@
 // Ưu tiên lấy từ .env (Vite): VITE_API_URL=http://localhost:4000/api
 export const API_URL = import.meta.env?.VITE_API_URL || "http://localhost:4000/api";
 
+// Helpers
+const getToken = () => localStorage.getItem("access_token") || localStorage.getItem("token") || null;
+export const authHeaders = () => {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
+const qs = (obj = {}) =>
+  Object.entries(obj)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    .join("&");
+export const joinUrl = (path = "") => {
+  const base = API_URL.replace(/\/+$/, "");
+  const p = String(path).startsWith("/") ? path : `/${path}`;
+  return `${base}${p}`;
+};
+
 /**
  * summaryApi: tập hợp các endpoint/path phía backend.
  * Dùng kèm API_URL khi gọi fetch/axios:
@@ -16,6 +33,7 @@ const summaryApi = {
   auth: {
     register: "/auth/register",
     login: "/auth/login",
+    google: "/auth/google",
     forgotPassword: "/auth/forgot-password",
     resetPassword: "/auth/reset-password",
     me: "/me", // cần header Authorization: Bearer <token>
@@ -108,6 +126,29 @@ const summaryApi = {
     available: "/me/vouchers",
     used: "/me/vouchers/used",
   },
+  // // ====== Chatbot ======
+  // url: (p) => `${API_URL}${p}`,
+  // authHeaders: () => authHeaders(),
+  // chat: {
+  //   start: "/chat/start",
+  //   stream: (q, id) => `/chat/stream?q=${encodeURIComponent(q)}&conversationId=${id}`,
+  // },
+
+  // ====== Chatbot (Gemini + SSE) ======
+  chat: {
+    // POST /chat/start  (headers: Authorization nếu có)
+    start: "/chat/start",
+
+    // GET /chat/stream?q=...&conversationId=...
+    // ⚠️ EventSource KHÔNG gửi được header Authorization tuỳ ý.
+    // -> Khuyên dùng httpOnly cookie cho auth; hoặc cho phép anonymous route rồi kiểm tra quyền trong tool.
+    streamPath: "/chat/stream",
+    streamUrl: (q, conversationId) =>
+      joinUrl(`/chat/stream?${qs({ q, conversationId })}`),
+  },
+
+
+
   // ====== Tiện ích: tạo full URL nhanh ======
   url: (path) => {
     // Ghép URL an toàn, tránh // trùng

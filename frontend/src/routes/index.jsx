@@ -25,6 +25,8 @@ import EditUser from '../pages/admin/EditUser.jsx';
 import ProductDetail from '../pages/ProductDetail.jsx';
 import CartPage from '../pages/CartPage.jsx';
 import CategoryPage from '../pages/CategoryPage.jsx';
+import Checkout from '../pages/user/Checkout.jsx';
+import CheckoutSuccess from '../pages/user/CheckoutSuccess.jsx';
 // import { patch } from '../../../backend/routes/index.js';
 import AccountLayout from '../pages/user/AccountLayout.jsx';
 import Profile from '../pages/user/Profile.jsx';
@@ -62,6 +64,14 @@ const router = createBrowserRouter([
             {
                 path: '/search',
                 element: <SearchResult />
+            },
+            {
+                path: '/checkout',
+                element: <Checkout />
+            },
+            {
+                path: '/checkout/success',
+                element: <CheckoutSuccess />
             },
             // ket thuc them moi
 

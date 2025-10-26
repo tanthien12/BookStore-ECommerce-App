@@ -5,6 +5,8 @@ const router = express.Router();
 const uploadCtrl = require("../controllers/upload.controller");
 const { makeUploader } = require("../middlewares/upload.middleware");
 
+const ReviewController = require("../controllers/review.controller");
+
 const authController = require("../controllers/auth.controller");
 const bookController = require("../controllers/book.controller");
 const categoryController = require("../controllers/category.controller");
@@ -17,6 +19,9 @@ const AccountController = require("../controllers/account.controller");
 const AddressController = require("../controllers/address.controller");
 const WishlistController = require("../controllers/wishlist.controller");
 const VoucherController = require("../controllers/voucher.controller");
+
+
+
 // ========== AUTH ==========
 router.post("/auth/register", authController.register);
 router.post("/auth/login", authController.login);
@@ -107,3 +112,27 @@ router.delete('/me/wishlist/:bookId', requireAuth, WishlistController.remove);
 router.get('/me/vouchers', requireAuth, VoucherController.available); // đang hoạt động + hợp lệ
 router.get('/me/vouchers/used', requireAuth, VoucherController.used);  // đã dùng
 module.exports = router;
+
+//Province, District, Ward
+router.get("/provinces", AddressController.provinces);          
+router.get("/districts", AddressController.districts);          
+router.get("/wards", AddressController.wards); 
+
+// ========== REVIEWS ==========
+// Lấy tất cả review gốc + replies cho 1 sản phẩm
+router.get("/books/:bookId/reviews", ReviewController.listByBook);
+
+// Lấy review gốc của chính user cho sản phẩm
+router.get("/books/:bookId/my-review", requireAuth, ReviewController.myReview);
+
+// User tạo / update đánh giá gốc
+router.post("/reviews", requireAuth, ReviewController.upsertRoot);
+
+// Xóa 1 review gốc hoặc 1 reply (chủ sở hữu hoặc admin)
+router.delete("/reviews/:id", requireAuth, ReviewController.remove);
+
+// Thêm reply dưới review gốc (chỉ admin hoặc owner review gốc)
+router.post("/reviews/:id/replies", requireAuth, ReviewController.addReply);
+
+// Sửa reply (chỉ người tạo reply)
+router.put("/replies/:replyId", requireAuth, ReviewController.updateReply);

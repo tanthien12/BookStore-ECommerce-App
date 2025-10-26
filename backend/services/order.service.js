@@ -22,7 +22,7 @@ const OrderService = {
     // Cập nhật đơn; nếu payload.items không truyền -> không đổi chi tiết
     update: (id, payload) => OrderModel.update(id, payload.order, payload.items),
 
-    remove: (id) => OrderModel.remove(id),
+    remove: (id) => OrderModel.remove(id),``
 
     // Chi tiết đơn (admin/nhân viên): gồm order + items
     detail: (id) => OrderModel.findById(id),

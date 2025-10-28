@@ -1,8 +1,9 @@
 // src/components/ProductCard.jsx
 import { Link } from "react-router-dom";
 
-import { computeDiscount } from "../../helpers/productHelper";
+// import { computeDiscount } from "../helpers/productHelper";
 import { useCart } from "../../context/CartContext";
+import { computeDiscount } from "../../helpers/productHelper";
 
 
 export default function ProductCard({ product, showDiscount = false, qty = 1 }) {

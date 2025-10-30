@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useCart } from "../../context/CartContext";
-import { money } from "../../helpers/productHelper";
-import { orderApi } from "../../api/orderApi";
-import useVNAddress from "../../hooks/useVNAddress";
+import { useCart } from "../context/CartContext";
+import { money } from "../helpers/productHelper";
+import { orderApi } from "../api/orderApi";
+import useVNAddress from "../hooks/useVNAddress";
 
 // Lấy user từ localStorage (backend auth sau này có thể thay bằng /me)
 const getUserFromStorage = () => {
@@ -29,23 +29,50 @@ const Field = ({ label, required, children, hint }) => (
 export default function Checkout() {
   const navigate = useNavigate();
   const user = getUserFromStorage();
-  const { cart, subtotal, clearCart } = useCart();
 
-  // địa chỉ chọn theo dropdown
+  // Lấy context giỏ hàng để có thể clearCart sau khi đặt hàng
+  const { clearCart } = useCart();
+
+  // ======== 1. Lấy danh sách sản phẩm được chọn từ sessionStorage ========
+  const [checkoutItems, setCheckoutItems] = useState([]);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("checkout_items");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setCheckoutItems(parsed);
+        }
+      }
+    } catch {
+      // nếu parse fail thì để rỗng
+    }
+  }, []);
+
+  // ======== 2. State địa chỉ / form ========
   const [provinceCode, setProvinceCode] = useState("");
   const [districtCode, setDistrictCode] = useState("");
   const [wardName, setWardName] = useState("");
 
-  // lấy dữ liệu địa chỉ từ backend
-  const { provinces, districts, wards, fetchDistricts, fetchWards } =
-    useVNAddress();
+  // ✅ LẤY ĐỦ CẢ LOADING
+  const {
+    provinces = [],
+    districts = [],
+    wards = [],
+    fetchDistricts,
+    fetchWards,
+    loadingProvince,
+    loadingDistrict,
+    loadingWard,
+    error: addressError,
+  } = useVNAddress();
 
-  // form chung
   const [form, setForm] = useState({
     full_name: user?.name || "",
     email: user?.email || "",
     phone: "",
-    address_line1: "", // số nhà, tên đường
+    address_line1: "",
     address_line2: "",
     note: "",
     shipping: "standard", // standard | express
@@ -59,7 +86,11 @@ export default function Checkout() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  // ======== Derived data (shipping fee, discount, total) ========
+  // ======== 3. Tính toán tiền dựa trên checkoutItems ========
+  const subtotalSelected = useMemo(() => {
+    return checkoutItems.reduce((sum, it) => sum + it.price * it.qty, 0);
+  }, [checkoutItems]);
+
   const canSuggestShipping = useMemo(
     () =>
       !!(
@@ -74,26 +105,23 @@ export default function Checkout() {
   const shippingFee = useMemo(() => {
     if (!canSuggestShipping) return 0;
     return form.shipping === "express" ? 30000 : 0;
-    // sau này bạn có thể tính phí theo tỉnh/thành
   }, [form.shipping, canSuggestShipping]);
 
   const discount = useMemo(() => {
     if (coupon.trim().toUpperCase() === "GIAM10") {
-      return Math.round(subtotal * 0.1);
+      return Math.round(subtotalSelected * 0.1);
     }
     return 0;
-  }, [coupon, subtotal]);
+  }, [coupon, subtotalSelected]);
 
   const total = useMemo(
-    () => Math.max(0, subtotal - discount + shippingFee),
-    [subtotal, discount, shippingFee]
+    () => Math.max(0, subtotalSelected - discount + shippingFee),
+    [subtotalSelected, discount, shippingFee]
   );
 
-  const disabled = submitting || cart.length === 0;
+  const disabled = submitting || checkoutItems.length === 0;
 
-  // ======== Helpers ========
-  const set = (key, value) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const applyCoupon = (e) => {
     e.preventDefault();
@@ -104,7 +132,6 @@ export default function Checkout() {
     }
   };
 
-  // ======== Lấy tên tỉnh / quận hiện chọn để đưa lên backend ========
   const selectedProvinceName =
     provinces.find((p) => p.code === provinceCode)?.name || "";
 
@@ -116,22 +143,17 @@ export default function Checkout() {
     const e = {};
 
     if (!form.full_name.trim()) e.full_name = "Vui lòng nhập họ tên";
-    if (!/^\S+@\S+\.\S+$/.test(form.email))
-      e.email = "Email không hợp lệ";
+    if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = "Email không hợp lệ";
     if (!/^\d{9,11}$/.test(form.phone))
       e.phone = "Số điện thoại 9–11 chữ số";
 
-    if (!form.address_line1.trim())
-      e.address_line1 = "Nhập số nhà, tên đường";
+    if (!form.address_line1.trim()) e.address_line1 = "Nhập số nhà, tên đường";
 
     if (!provinceCode) e.province = "Chọn tỉnh/thành";
     if (!districtCode) e.district = "Chọn quận/huyện";
     if (!wardName) e.ward = "Chọn phường/xã";
 
-    if (
-      form.need_invoice &&
-      !/^\S+@\S+\.\S+$/.test(form.tax_email)
-    ) {
+    if (form.need_invoice && !/^\S+@\S+\.\S+$/.test(form.tax_email)) {
       e.tax_email = "Email nhận hoá đơn không hợp lệ";
     }
 
@@ -142,10 +164,14 @@ export default function Checkout() {
   // ======== Submit / Place Order ========
   const placeOrder = async () => {
     if (!validate()) return;
+    if (checkoutItems.length === 0) {
+      alert("Bạn chưa chọn sản phẩm nào để thanh toán.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      // snapshot địa chỉ giao hàng để đúng với cột shipping_address JSONB trong bảng "order"
       const shippingAddress = {
         full_name: form.full_name,
         phone: form.phone,
@@ -158,43 +184,27 @@ export default function Checkout() {
         country: "Việt Nam",
       };
 
-      // Build payload đúng với schema backend bạn mô tả
       const payload = {
-        order: {
-          user_id: user?.id || null,
-          status: "pending",
-
-          subtotal: subtotal,
-          discount_total: discount,
-          shipping_fee: shippingFee,
-          grand_total: total,
-
-          shipping_address: shippingAddress,
-          shipping_method:
-            form.shipping === "express" ? "express" : "standard",
-          tracking_number: null,
-
-          placed_at: new Date().toISOString(),
-
-          note: form.note || null,
-        },
-
-        items: cart.map((c) => ({
-          book_id: c.productId, // id sách trong DB
-          quantity: c.qty,
-          price_snapshot: c.price, // chụp lại giá tại thời điểm đặt
+        user_id: user?.id || null,
+        status: "pending",
+        shipping_fee: shippingFee,
+        discount_total: discount,
+        shipping_method:
+          form.shipping === "express" ? "express" : "standard",
+        shipping_address: shippingAddress,
+        items: checkoutItems.map((item) => ({
+          book_id: item.productId,
+          quantity: item.qty,
+          price: item.price,
         })),
-
+  
         payment: {
-          method: form.payment, // "cod" | "bank" | "qr"
-          status:
-            form.payment === "cod" ? "unpaid" : "pending",
+          method: form.payment,
+          status: form.payment === "cod" ? "unpaid" : "pending",
           amount_paid: 0,
           currency: "VND",
           transaction_id: null,
         },
-
-        // nếu có coupon
         coupon:
           discount > 0
             ? {
@@ -202,38 +212,51 @@ export default function Checkout() {
                 discount_amount: discount,
               }
             : null,
-
         invoice:
-          form.need_invoice === true
-            ? {
-                email: form.tax_email,
-              }
-            : null,
+          form.need_invoice === true ? { email: form.tax_email } : null,
       };
 
-      // gọi API backend tạo order
       const created = await orderApi.create(payload);
+            const orderId =
+        created?.data?.order_id || created?.data?.id || null;
 
-      // Lưu nháp để trang success show cho người dùng
+      // 2️⃣ Nếu người dùng chọn QR (VNPay)
+      if (form.payment === "qr") {
+        const res = await fetch(
+          "http://localhost:4000/api/vnpay/create-payment-url",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              order_id: orderId,
+              amount: total,
+              bankCode: "", // để rỗng để hiển thị QR mặc định
+            }),
+          }
+        );
+        const data = await res.json();
+        if (data.success && data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+          return;
+        } else {
+          alert("Không thể tạo link VNPay, vui lòng thử lại sau.");
+          return;
+        }
+      }
+
       localStorage.setItem(
         "order_draft",
         JSON.stringify({
-          orderId:
-            created?.data?.order_id ||
-            created?.data?.id ||
-            null,
+          orderId: created?.data?.order_id || created?.data?.id || null,
           total,
           payment_method: form.payment,
           shipping_method: form.shipping,
           address: shippingAddress,
-          items: cart,
+          items: checkoutItems,
         })
       );
 
-      // clear cart local
       clearCart();
-
-      // điều hướng sang trang thành công
       navigate("/checkout/success", { replace: true });
     } catch (err) {
       console.error("placeOrder error:", err);
@@ -253,9 +276,7 @@ export default function Checkout() {
       <div className="space-y-4">
         {/* 1. Tài khoản */}
         <section className="rounded-2xl border border-gray-200 bg-white">
-          <div className="px-4 py-3 border-b font-semibold">
-            Tài khoản
-          </div>
+          <div className="px-4 py-3 border-b font-semibold">Tài khoản</div>
           <div className="p-4 flex items-center justify-between">
             {user ? (
               <>
@@ -265,25 +286,17 @@ export default function Checkout() {
                   </div>
                   <div>
                     <div className="font-medium">{user.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {user.email}
-                    </div>
+                    <div className="text-sm text-gray-500">{user.email}</div>
                   </div>
                 </div>
-                <Link
-                  to="/logout"
-                  className="text-sm text-red-600"
-                >
+                <Link to="/logout" className="text-sm text-red-600">
                   Đăng xuất
                 </Link>
               </>
             ) : (
               <div className="text-sm text-gray-600">
-                Bạn chưa đăng nhập.{" "}
-                <Link
-                  to="/login"
-                  className="text-red-600 underline"
-                >
+                Bạn chưa đăng nhập{" "}
+                <Link to="/login" className="text-red-600 underline">
                   Đăng nhập
                 </Link>
               </div>
@@ -291,7 +304,7 @@ export default function Checkout() {
           </div>
         </section>
 
-        {/* 2. Địa chỉ giao hàng */}
+        {/* 2. Thông tin giao hàng */}
         <section className="rounded-2xl border border-gray-200 bg-white">
           <div className="px-4 py-3 border-b font-semibold">
             Thông tin giao hàng
@@ -306,9 +319,7 @@ export default function Checkout() {
                 />
               </Field>
               {errors.full_name && (
-                <p className="text-xs text-red-600 mt-1">
-                  {errors.full_name}
-                </p>
+                <p className="text-xs text-red-600 mt-1">{errors.full_name}</p>
               )}
             </div>
 
@@ -322,9 +333,7 @@ export default function Checkout() {
                 />
               </Field>
               {errors.phone && (
-                <p className="text-xs text-red-600 mt-1">
-                  {errors.phone}
-                </p>
+                <p className="text-xs text-red-600 mt-1">{errors.phone}</p>
               )}
             </div>
 
@@ -338,9 +347,7 @@ export default function Checkout() {
                 />
               </Field>
               {errors.email && (
-                <p className="text-xs text-red-600 mt-1">
-                  {errors.email}
-                </p>
+                <p className="text-xs text-red-600 mt-1">{errors.email}</p>
               )}
             </div>
 
@@ -359,7 +366,7 @@ export default function Checkout() {
               )}
             </div>
 
-            {/* Dropdown Tỉnh/Thành */}
+            {/* Tỉnh / Thành phố */}
             <div>
               <Field label="Tỉnh / Thành phố" required>
                 <select
@@ -369,11 +376,15 @@ export default function Checkout() {
                     setProvinceCode(newProvince);
                     setDistrictCode("");
                     setWardName("");
-                    fetchDistricts(newProvince); // load quận/huyện theo tỉnh
+                    fetchDistricts(newProvince);
                   }}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
                 >
-                  <option value="">-- Chọn tỉnh/thành --</option>
+                  <option value="">
+                    {loadingProvince
+                      ? "Đang tải..."
+                      : "-- Chọn tỉnh/thành --"}
+                  </option>
                   {provinces.map((p) => (
                     <option key={p.code} value={p.code}>
                       {p.name}
@@ -381,15 +392,12 @@ export default function Checkout() {
                   ))}
                 </select>
               </Field>
-
               {errors.province && (
-                <p className="text-xs text-red-600 mt-1">
-                  {errors.province}
-                </p>
+                <p className="text-xs text-red-600 mt-1">{errors.province}</p>
               )}
             </div>
 
-            {/* Dropdown Quận/Huyện */}
+            {/* Quận / Huyện */}
             <div>
               <Field label="Quận / Huyện" required>
                 <select
@@ -398,12 +406,18 @@ export default function Checkout() {
                     const newDistrict = e.target.value;
                     setDistrictCode(newDistrict);
                     setWardName("");
-                    fetchWards(provinceCode, newDistrict); // load phường/xã theo quận
+                    fetchWards(provinceCode, newDistrict);
                   }}
                   disabled={!provinceCode}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400"
                 >
-                  <option value="">-- Chọn quận/huyện --</option>
+                  <option value="">
+                    {!provinceCode
+                      ? "Chọn tỉnh trước"
+                      : loadingDistrict
+                      ? "Đang tải..."
+                      : "-- Chọn quận/huyện --"}
+                  </option>
                   {districts.map((d) => (
                     <option key={d.code} value={d.code}>
                       {d.name}
@@ -412,13 +426,11 @@ export default function Checkout() {
                 </select>
               </Field>
               {errors.district && (
-                <p className="text-xs text-red-600 mt-1">
-                  {errors.district}
-                </p>
+                <p className="text-xs text-red-600 mt-1">{errors.district}</p>
               )}
             </div>
 
-            {/* Dropdown Phường/Xã */}
+            {/* Phường / Xã */}
             <div>
               <Field label="Phường / Xã" required>
                 <select
@@ -427,7 +439,13 @@ export default function Checkout() {
                   disabled={!districtCode}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-400"
                 >
-                  <option value="">-- Chọn phường/xã --</option>
+                  <option value="">
+                    {!districtCode
+                      ? "Chọn quận trước"
+                      : loadingWard
+                      ? "Đang tải..."
+                      : "-- Chọn phường/xã --"}
+                  </option>
                   {wards.map((w) => (
                     <option key={w.code} value={w.name}>
                       {w.name}
@@ -436,9 +454,7 @@ export default function Checkout() {
                 </select>
               </Field>
               {errors.ward && (
-                <p className="text-xs text-red-600 mt-1">
-                  {errors.ward}
-                </p>
+                <p className="text-xs text-red-600 mt-1">{errors.ward}</p>
               )}
             </div>
 
@@ -462,6 +478,13 @@ export default function Checkout() {
                 />
               </Field>
             </div>
+
+            {/* lỗi API địa chỉ nếu có */}
+            {addressError && (
+              <div className="md:col-span-2">
+                <p className="text-xs text-red-500">{addressError}</p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -473,8 +496,7 @@ export default function Checkout() {
           <div className="p-4">
             {!canSuggestShipping ? (
               <div className="text-sm text-gray-500">
-                Vui lòng nhập đầy đủ địa chỉ để xem lựa
-                chọn giao hàng.
+                Vui lòng nhập đầy đủ địa chỉ để xem lựa chọn giao hàng.
               </div>
             ) : (
               <div className="space-y-2">
@@ -485,9 +507,7 @@ export default function Checkout() {
                     checked={form.shipping === "standard"}
                     onChange={() => set("shipping", "standard")}
                   />
-                  <span className="text-sm">
-                    Giao tiêu chuẩn — {money(0)}
-                  </span>
+                  <span className="text-sm">Giao tiêu chuẩn — {money(0)}</span>
                 </label>
 
                 <label className="flex items-center gap-2">
@@ -497,9 +517,7 @@ export default function Checkout() {
                     checked={form.shipping === "express"}
                     onChange={() => set("shipping", "express")}
                   />
-                  <span className="text-sm">
-                    Giao nhanh — {money(30000)}
-                  </span>
+                  <span className="text-sm">Giao nhanh — {money(30000)}</span>
                 </label>
               </div>
             )}
@@ -537,9 +555,7 @@ export default function Checkout() {
                 onChange={() => set("payment", "bank")}
               />
               <div className="text-sm">
-                <div className="font-medium">
-                  Chuyển khoản ngân hàng
-                </div>
+                <div className="font-medium">Chuyển khoản ngân hàng</div>
                 <div className="text-gray-500">
                   Thông tin STK sẽ hiển thị sau khi đặt hàng.
                 </div>
@@ -554,9 +570,7 @@ export default function Checkout() {
                 onChange={() => set("payment", "qr")}
               />
               <div className="text-sm">
-                <div className="font-medium">
-                  Quét mã QR để thanh toán
-                </div>
+                <div className="font-medium">Quét mã QR để thanh toán</div>
                 <div className="text-gray-500">
                   Hiển thị mã QR ngay sau khi đặt.
                 </div>
@@ -602,43 +616,42 @@ export default function Checkout() {
 
       {/* RIGHT: Giỏ hàng + mã giảm + tổng tiền */}
       <aside className="space-y-4">
-        {/* Giỏ hàng */}
+        {/* Giỏ hàng đã chọn */}
         <section className="rounded-2xl border border-gray-200 bg-white">
           <div className="px-4 py-3 border-b font-semibold">
-            Giỏ hàng
+            Sản phẩm thanh toán ({checkoutItems.length})
           </div>
           <ul className="p-3 divide-y">
-            {cart.map((it) => (
-              <li
-                key={it.productId}
-                className="py-3 flex items-center gap-3"
-              >
-                <img
-                  src={it.image}
-                  alt={it.title}
-                  className="w-12 h-16 object-contain rounded border"
-                />
-                <div className="flex-1">
-                  <div className="text-sm font-medium line-clamp-2">
-                    {it.title}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    SL: {it.qty}
-                  </div>
-                </div>
-                <div className="text-sm font-semibold">
-                  {money(it.price * it.qty)}
-                </div>
+            {checkoutItems.length === 0 ? (
+              <li className="py-6 text-center text-sm text-gray-500">
+                Bạn chưa chọn sản phẩm nào. Quay lại giỏ hàng để chọn.
               </li>
-            ))}
+            ) : (
+              checkoutItems.map((it) => (
+                <li key={it.productId} className="py-3 flex items-center gap-3">
+                  <img
+                    src={it.image}
+                    alt={it.title}
+                    className="w-12 h-16 object-contain rounded border"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium line-clamp-2">
+                      {it.title}
+                    </div>
+                    <div className="text-xs text-gray-500">SL: {it.qty}</div>
+                  </div>
+                  <div className="text-sm font-semibold">
+                    {money(it.price * it.qty)}
+                  </div>
+                </li>
+              ))
+            )}
           </ul>
         </section>
 
         {/* Mã khuyến mãi */}
         <section className="rounded-2xl border border-gray-200 bg-white">
-          <div className="px-4 py-3 border-b font-semibold">
-            Mã khuyến mãi
-          </div>
+          <div className="px-4 py-3 border-b font-semibold">Mã khuyến mãi</div>
           <form onSubmit={applyCoupon} className="p-4 flex gap-2">
             <input
               value={coupon}
@@ -651,9 +664,7 @@ export default function Checkout() {
             </button>
           </form>
           {couponMsg && (
-            <div className="px-4 pb-3 text-sm text-gray-600">
-              {couponMsg}
-            </div>
+            <div className="px-4 pb-3 text-sm text-gray-600">{couponMsg}</div>
           )}
         </section>
 
@@ -665,7 +676,7 @@ export default function Checkout() {
           <div className="p-4 space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Tổng tiền hàng</span>
-              <span className="font-semibold">{money(subtotal)}</span>
+              <span className="font-semibold">{money(subtotalSelected)}</span>
             </div>
 
             <div className="flex justify-between">
@@ -692,11 +703,15 @@ export default function Checkout() {
               onClick={placeOrder}
               className={`w-full rounded-xl px-5 py-3 font-semibold text-white ${
                 disabled
-                  ? "bg-gray-300"
+                  ? "bg-gray-300 cursor-not-allowed"
                   : "bg-red-600 hover:bg-red-500"
               }`}
             >
-              {submitting ? "Đang đặt..." : "Đặt hàng"}
+              {submitting
+                ? "Đang đặt..."
+                : checkoutItems.length === 0
+                ? "Chọn sản phẩm ở giỏ hàng trước"
+                : "Đặt hàng"}
             </button>
           </div>
         </section>

@@ -1,8 +1,8 @@
 // src/pages/SearchResult.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import summaryApi from "../../common/index.js";
-import ProductCard from "../../components/layout/ProductCard";
+import summaryApi from "../common/index.js";
+import ProductCard from "../components/layout/ProductCard.jsx";
 
 /** ---------------- Config ---------------- */
 const SORTS = [

@@ -104,8 +104,10 @@ const baseOrderSchema = z.object({
     shipping_fee: z.coerce.number().nonnegative().default(0),
     discount_total: z.coerce.number().nonnegative().default(0),
     shipping_address: z.any().optional(), // JSON snapshot địa chỉ nhận hàng
+    shipping_method: z.string().optional(),
     items: z.array(itemSchema).min(1, "Phải có ít nhất 1 sản phẩm"),
 });
+const createOrderSchema = baseOrderSchema.passthrough();
 
 const paramsIdSchema = z.object({ id: z.string().uuid() });
 
@@ -143,6 +145,7 @@ module.exports = {
                     shipping_fee: payload.shipping_fee,
                     grand_total,
                     shipping_address: payload.shipping_address || null,
+                    shipping_method: payload.shipping_method || null,
                     placed_at: new Date(), // theo schema
                 },
                 // map price -> price_snapshot cho order_details

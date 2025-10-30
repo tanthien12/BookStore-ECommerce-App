@@ -1,31 +1,26 @@
+// src/components/layout/FlashSale.jsx
 import React from "react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation } from "swiper/modules";
-import "swiper/css"; import "swiper/css/navigation";
-
-import { products } from "../../data/products";
-import ProductCard from "./ProductCard";
-
+import useFlashSaleBooks from "../../hooks/useFlashSaleBooks";
+import ProductCard from "../../components/layout/ProductCard";
 
 export default function FlashSale() {
-    const list = products.slice(0, 8); // ví dụ lấy vài item
-    return (
-        <div className="mx-auto max-w-7xl px-3 md:px-4 mt-8">
-            <div className="flex items-center justify-between bg-white rounded-t-xl px-4 py-2">
-                <h2 className="text-lg font-bold text-red-600">FLASH SALE ⚡</h2>
-                <a href="#" className="text-blue-600 text-sm hover:underline">Xem tất cả</a>
-            </div>
-            <div className="bg-gradient-to-r from-red-400 to-red-500 p-4 rounded-b-xl">
-                <Swiper modules={[Navigation]} navigation spaceBetween={16} slidesPerView={2}
-                    breakpoints={{ 640: { slidesPerView: 3 }, 1024: { slidesPerView: 5 } }}>
-                    {list.map(p => (
-                        <SwiperSlide key={p.id}>
-                            <ProductCard product={p} showDiscount />
-                        </SwiperSlide>
-                    ))}
-                </Swiper>
+  const { books, loading } = useFlashSaleBooks(8);
 
-            </div>
+  return (
+    <section className="mt-6 bg-[#ffe9e9] rounded-lg p-4">
+      <h2 className="text-base font-semibold text-red-600 mb-3">Flash Sale</h2>
+
+      {loading ? (
+        <div className="text-sm text-gray-500">Đang tải sách khuyến mãi...</div>
+      ) : books.length === 0 ? (
+        <div className="text-sm text-gray-400">Chưa có sách.</div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {books.map((book) => (
+            <ProductCard key={book.id || book.book_id} book={book} />
+          ))}
         </div>
-    );
+      )}
+    </section>
+  );
 }

@@ -537,6 +537,31 @@ async function listAddresses(user_id) {
   return rows;
 }
 
+async function findByGoogleId(googleId) {
+  const sql = `${USER_SELECT} WHERE google_id = $1 LIMIT 1`;
+  const { rows } = await query(sql, [googleId]);
+  return rows[0] || null;
+}
+
+async function createByGoogle({ name, email, google_id, avatar_url, role_id }) {
+  const sql = `
+    INSERT INTO ${TBL_USER}(name, email, provider, google_id, avatar_url, is_active, role_id)
+    VALUES ($1, $2, 'google', $3, $4, true, $5)
+    RETURNING id, email, name, avatar_url, is_active, last_login_at, role_id, created_at, updated_at
+  `;
+  const { rows } = await query(sql, [name, email, google_id, avatar_url, role_id]);
+  return rows[0];
+}
+
+async function updateAvatar(userId, avatarUrl) {
+  const sql = `
+    UPDATE ${TBL_USER}
+    SET avatar_url = $2, updated_at = now()
+    WHERE id = $1
+  `;
+  await query(sql, [userId, avatarUrl]);
+}
+
 /** =========================
  *  EXPORT
  * ========================= */
@@ -565,5 +590,10 @@ module.exports = {
 
   // Addresses
   listAddresses,
+
+  // ===== BỔ SUNG GOOGLE =====
+  findByGoogleId,
+  createByGoogle,
+  updateAvatar,
 };
 

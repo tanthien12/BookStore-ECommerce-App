@@ -1,36 +1,57 @@
 // src/api/orderApi.js
-// ✨ Giả lập API order để frontend hoạt động được mà không cần backend thật.
+// ✅ Gọi API thật đến backend Node.js để lưu đơn hàng vào PostgreSQL
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 export const orderApi = {
   /**
-   * Mô phỏng tạo đơn hàng.
-   * @param {Object} payload - Dữ liệu đơn hàng gồm { order, items }
-   * @returns {Promise<Object>} - Promise trả về mô phỏng phản hồi từ server
+   * Tạo đơn hàng thật trên backend
+   * @param {Object} payload - dữ liệu đơn hàng gồm user_id, items[], shipping_address, ...
+   * @returns {Promise<Object>} - phản hồi từ backend
    */
   create: async (payload) => {
-    console.log("🧾 Simulated API: create order", payload);
-
-    // Giả lập độ trễ API (500ms)
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Lưu tạm vào localStorage để trang success đọc
     try {
-      localStorage.setItem("order_draft", JSON.stringify(payload));
-    } catch (e) {
-      console.error("Failed to save draft:", e);
-    }
+      const res = await fetch(`${BASE_URL}/api/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    // Trả phản hồi giả lập
-    return {
-      message: "Order created (simulated)",
-      orderId: Math.floor(Math.random() * 100000),
-      success: true,
-    };
+      const data = await res.json();
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Lỗi khi tạo đơn hàng");
+      }
+
+      // ✅ Lưu tạm order_draft để trang success đọc
+      localStorage.setItem(
+        "order_draft",
+        JSON.stringify({
+          orderId: data?.data?.id,
+          ...payload,
+        })
+      );
+
+      return data;
+    } catch (err) {
+      console.error("❌ orderApi.create error:", err);
+      throw err;
+    }
   },
 
-  // (Tuỳ chọn) hàm list() giả lập — nếu bạn muốn hiển thị danh sách đơn hàng
+  /**
+   * Lấy danh sách đơn hàng (nếu bạn cần hiển thị ở trang quản lý)
+   */
   list: async () => {
-    const data = JSON.parse(localStorage.getItem("order_draft") || "null");
-    return data ? [data] : [];
+    try {
+      const res = await fetch(`${BASE_URL}/api/orders`);
+      const data = await res.json();
+      return data?.data || [];
+    } catch (err) {
+      console.error("❌ orderApi.list error:", err);
+      return [];
+    }
   },
 };

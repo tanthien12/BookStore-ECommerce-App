@@ -129,11 +129,18 @@ const OrderModel = {
             await client.query("BEGIN");
 
             const insertOrderSql = `
-        INSERT INTO "order" (
-          user_id, status, subtotal, discount_total, shipping_fee, grand_total,
-          shipping_address, placed_at
-        )
-        VALUES ($1,$2,$3,$4,$5,$6,$7, COALESCE($8, now()))
+            INSERT INTO "order" (
+                user_id,
+                status,
+                subtotal,
+                discount_total,
+                shipping_fee,
+                grand_total,
+                shipping_address,
+                shipping_method,
+                placed_at
+            )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8, COALESCE($9, now()))
         RETURNING *;
       `;
             const oRes = await client.query(insertOrderSql, [
@@ -144,6 +151,7 @@ const OrderModel = {
                 Number(order.shipping_fee) || 0,
                 Number(order.grand_total) || 0,
                 order.shipping_address || null,
+                order.shipping_method || null,
                 order.placed_at || null,
             ]);
             const o = oRes.rows[0];
@@ -190,6 +198,8 @@ const OrderModel = {
                         order.discount_total != null ? Number(order.discount_total) : undefined,
                     shipping_fee:
                         order.shipping_fee != null ? Number(order.shipping_fee) : undefined,
+                    shipping_method:
+                        order.shipping_method != null ? Number(order.shipping_) : undefined,
                     grand_total:
                         order.grand_total != null ? Number(order.grand_total) : undefined,
                     shipping_address: order.shipping_address,
@@ -291,7 +301,7 @@ const OrderModel = {
 
         const listSql = `
       WITH page_data AS (
-        SELECT o.id, o.user_id, o.status, o.subtotal, o.discount_total, o.shipping_fee,
+        SELECT o.id, o.user_id, o.status, o.subtotal, o.discount_total, o.shipping_fee, o.shipping_method,
                o.grand_total, o.placed_at, o.updated_at,
                u.name AS customer_name, u.email AS customer_email
         FROM "order" o

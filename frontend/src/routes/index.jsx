@@ -25,8 +25,8 @@ import EditUser from '../pages/admin/EditUser.jsx';
 import ProductDetail from '../pages/ProductDetail.jsx';
 import CartPage from '../pages/CartPage.jsx';
 import CategoryPage from '../pages/CategoryPage.jsx';
-import Checkout from '../pages/user/Checkout.jsx';
-import CheckoutSuccess from '../pages/user/CheckoutSuccess.jsx';
+import Checkout from '../pages/Checkout.jsx';
+import CheckoutSuccess from '../pages/CheckoutSuccess.jsx';
 // import { patch } from '../../../backend/routes/index.js';
 import AccountLayout from '../pages/user/AccountLayout.jsx';
 import Profile from '../pages/user/Profile.jsx';
@@ -36,7 +36,7 @@ import AddressBook from '../pages/user/AddressBook.jsx';
 import Vouchers from '../pages/user/Vouchers.jsx';
 import Security from '../pages/user/Security.jsx';
 import Support from '../pages/user/Support.jsx';
-import SearchResult from '../pages/user/SearchResult.jsx';
+import SearchResult from '../pages/SearchResult.jsx';
 
 const router = createBrowserRouter([
     {

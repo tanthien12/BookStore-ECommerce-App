@@ -1,3 +1,4 @@
+
 // // src/pages/Login.jsx
 // import React, { useState } from "react";
 // import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -37,21 +38,61 @@
 //         try {
 //             setLoading(true);
 //             setError("");
+
 //             const res = await fetch(summaryApi.url(summaryApi.auth.login), {
 //                 method: "POST",
 //                 headers: { "Content-Type": "application/json" },
-//                 credentials: "include",
+//                 credentials: "include", // nếu backend set cookie (refreshToken chẳng hạn)
 //                 body: JSON.stringify({
 //                     email: form.email,
 //                     password: form.password,
 //                     remember: form.remember,
 //                 }),
 //             });
+
+//             // Lấy body dù có/không có ok để hiển thị message phù hợp
+//             const data = await res.json().catch(() => ({}));
+//             // ✅ Thêm dòng này để xem dữ liệu login
+//             console.log("✅ Dữ liệu login trả về:", data);
 //             if (!res.ok) {
-//                 const data = await res.json().catch(() => ({}));
 //                 throw new Error(data?.message || "Đăng nhập thất bại");
 //             }
 
+//             // ================================
+//             // ✅ LƯU TOKEN + USER CHO HEADER
+//             // ================================
+//             // Hỗ trợ nhiều kiểu response: {accessToken,user} hoặc {token,user} hoặc {data:{accessToken,user}}
+//             // const accessToken =
+//             //     data?.accessToken ||
+//             //     data?.token ||
+//             //     data?.data?.accessToken ||
+//             //     data?.data?.token ||
+//             //     null;
+
+//             // const user =
+//             //     data?.user ||
+//             //     data?.profile ||
+//             //     data?.data?.user ||
+//             //     data?.data?.profile ||
+//             //     null;
+//             // ✅ LƯU TOKEN USER CHO HEADER (chuẩn theo backend hiện tại)
+//             // Response: { success, data: { user, tokens: { accessToken, refreshToken } } }
+//             const accessToken = data?.data?.tokens?.accessToken || null;
+//             const user = data?.data?.user || null;
+
+//             // Chỉ định dạng object đơn giản để Header đọc ra tên + role
+//             if (user) {
+//                 localStorage.setItem("user", JSON.stringify(user));
+//             }
+//             if (accessToken) {
+//                 localStorage.setItem("access_token", accessToken);
+//             }
+
+//             // (tuỳ chọn) nếu muốn tách remember:
+//             // if (form.remember) localStorage.setItem("access_token", accessToken);
+//             // else sessionStorage.setItem("access_token", accessToken);
+
+//             // Điều hướng về trang trước / trang chủ
 //             navigate(redirectTo, { replace: true });
 //         } catch (err) {
 //             setError(err.message || "Có lỗi xảy ra");
@@ -182,7 +223,7 @@
 //                         </button>
 //                     </div>
 
-//                     {/* Footer (no terms/policy here) */}
+//                     {/* Footer */}
 //                     <p className="mt-5 text-center text-sm text-gray-600">
 //                         Chưa có tài khoản?{" "}
 //                         <Link to="/register" className="text-red-600 hover:underline">
@@ -195,12 +236,13 @@
 //     );
 // }
 
+//code 2
 // src/pages/Login.jsx
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FiEye, FiEyeOff } from "react-icons/fi";
-import { FcGoogle } from "react-icons/fc";
 import summaryApi from "../common";
+import { GoogleLogin } from "@react-oauth/google"; // ⬅️ NEW
 
 export default function Login() {
     const navigate = useNavigate();
@@ -210,6 +252,7 @@ export default function Login() {
     const [form, setForm] = useState({ email: "", password: "", remember: true });
     const [showPwd, setShowPwd] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [loadingGoogle, setLoadingGoogle] = useState(false); // ⬅️ NEW
     const [error, setError] = useState("");
 
     const onChange = (e) => {
@@ -238,7 +281,7 @@ export default function Login() {
             const res = await fetch(summaryApi.url(summaryApi.auth.login), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                credentials: "include", // nếu backend set cookie (refreshToken chẳng hạn)
+                credentials: "include", // nếu backend dùng cookie
                 body: JSON.stringify({
                     email: form.email,
                     password: form.password,
@@ -246,49 +289,16 @@ export default function Login() {
                 }),
             });
 
-            // Lấy body dù có/không có ok để hiển thị message phù hợp
             const data = await res.json().catch(() => ({}));
-            // ✅ Thêm dòng này để xem dữ liệu login
-            console.log("✅ Dữ liệu login trả về:", data);
-            if (!res.ok) {
-                throw new Error(data?.message || "Đăng nhập thất bại");
-            }
+            if (!res.ok) throw new Error(data?.message || "Đăng nhập thất bại");
 
-            // ================================
-            // ✅ LƯU TOKEN + USER CHO HEADER
-            // ================================
-            // Hỗ trợ nhiều kiểu response: {accessToken,user} hoặc {token,user} hoặc {data:{accessToken,user}}
-            // const accessToken =
-            //     data?.accessToken ||
-            //     data?.token ||
-            //     data?.data?.accessToken ||
-            //     data?.data?.token ||
-            //     null;
-
-            // const user =
-            //     data?.user ||
-            //     data?.profile ||
-            //     data?.data?.user ||
-            //     data?.data?.profile ||
-            //     null;
-            // ✅ LƯU TOKEN USER CHO HEADER (chuẩn theo backend hiện tại)
-            // Response: { success, data: { user, tokens: { accessToken, refreshToken } } }
+            // Chuẩn theo backend hiện tại: { success, data: { user, tokens: { accessToken, refreshToken } } }
             const accessToken = data?.data?.tokens?.accessToken || null;
             const user = data?.data?.user || null;
 
-            // Chỉ định dạng object đơn giản để Header đọc ra tên + role
-            if (user) {
-                localStorage.setItem("user", JSON.stringify(user));
-            }
-            if (accessToken) {
-                localStorage.setItem("access_token", accessToken);
-            }
+            if (user) localStorage.setItem("user", JSON.stringify(user));
+            if (accessToken) localStorage.setItem("access_token", accessToken);
 
-            // (tuỳ chọn) nếu muốn tách remember:
-            // if (form.remember) localStorage.setItem("access_token", accessToken);
-            // else sessionStorage.setItem("access_token", accessToken);
-
-            // Điều hướng về trang trước / trang chủ
             navigate(redirectTo, { replace: true });
         } catch (err) {
             setError(err.message || "Có lỗi xảy ra");
@@ -297,9 +307,39 @@ export default function Login() {
         }
     };
 
-    const handleGoogle = () => {
-        window.location.href = "/api/auth/google";
+    // ⬇️ NEW: Google Login handlers
+    const onGoogleSuccess = async (credentialResponse) => {
+        try {
+            setLoadingGoogle(true);
+            setError("");
+            const id_token = credentialResponse?.credential;
+            if (!id_token) throw new Error("Google không trả về ID token.");
+
+            const res = await fetch(summaryApi.url(summaryApi.auth.google), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ id_token }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data?.success) throw new Error(data?.message || "Đăng nhập Google thất bại");
+
+            const accessToken = data?.data?.tokens?.accessToken || null;
+            const user = data?.data?.user || null;
+
+            if (user) localStorage.setItem("user", JSON.stringify(user));
+            if (accessToken) localStorage.setItem("access_token", accessToken);
+
+            navigate(redirectTo, { replace: true });
+        } catch (err) {
+            setError(err.message || "Không thể đăng nhập bằng Google.");
+        } finally {
+            setLoadingGoogle(false);
+        }
     };
+
+    const onGoogleError = () => setError("Không thể xác thực với Google.");
 
     return (
         <div className="min-h-dvh w-full flex items-start justify-center bg-gray-50 px-4 pt-4 pb-8">
@@ -405,18 +445,11 @@ export default function Login() {
                         <div className="h-px flex-1 bg-gray-200" />
                     </div>
 
-                    {/* Social: Google only */}
-                    <div className="grid">
-                        <button
-                            type="button"
-                            onClick={handleGoogle}
-                            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 text-sm font-medium hover:bg-gray-50"
-                        >
-                            <span className="inline-flex items-center justify-center gap-2">
-                                <FcGoogle className="h-5 w-5" aria-hidden />
-                                Google
-                            </span>
-                        </button>
+                    {/* Social: Google */}
+                    <div className="grid place-items-center">
+                        <div className={loadingGoogle ? "opacity-70 pointer-events-none" : ""}>
+                            <GoogleLogin onSuccess={onGoogleSuccess} onError={onGoogleError} useOneTap={false} />
+                        </div>
                     </div>
 
                     {/* Footer */}

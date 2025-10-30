@@ -21,6 +21,12 @@ const WishlistController = require("../controllers/wishlist.controller");
 const VoucherController = require("../controllers/voucher.controller");
 
 
+const chatCtl = require("../controllers/chat.controller");
+const { authMiddleware } = require("../middlewares/auth.middleware");
+const sseHeaders = require("../middlewares/sse.middleware");
+
+const paymentController = require("../controllers/payment.controller");
+
 
 // ========== AUTH ==========
 router.post("/auth/register", authController.register);
@@ -28,6 +34,8 @@ router.post("/auth/login", authController.login);
 router.post("/auth/forgot-password", authController.forgotPassword);
 router.post("/auth/reset-password", authController.resetPassword);
 router.post("/auth/logout", authController.logout);
+router.post('/auth/google', authController.googleLogin);
+
 
 // ========== UPLOAD ==========
 router.post("/upload/products", makeUploader("products").single("file"), uploadCtrl.uploadSingle("products"));
@@ -111,6 +119,30 @@ router.delete('/me/wishlist/:bookId', requireAuth, WishlistController.remove);
 // Vouchers
 router.get('/me/vouchers', requireAuth, VoucherController.available); // đang hoạt động + hợp lệ
 router.get('/me/vouchers/used', requireAuth, VoucherController.used);  // đã dùng
+
+// chatbot
+// ========== CHATBOT (Gemini + SSE) ==========
+// Rate-limit cho SSE
+const rateLimit = require("express-rate-limit");
+const sseLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 phút
+    max: 30,                  // tối đa 30 request/5 phút/IP
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+//vnpay
+router.post("/vnpay/create-payment-url", paymentController.createVNPayUrl);
+router.get("/vnpay/return", paymentController.vnpayReturn);
+
+// ===== Chatbot
+router.get("/chat/health", chatCtl.health);
+router.get("/chat/stream-test", sseHeaders, chatCtl.streamTest);
+
+// KHÔNG ép login ở 2 route dưới (EventSource không gửi được Bearer header).
+router.post("/chat/start", chatCtl.start);
+router.get("/chat/stream", sseHeaders, sseLimiter, chatCtl.stream);
+
 module.exports = router;
 
 //Province, District, Ward

@@ -22,7 +22,7 @@ const OrderService = {
     // Cập nhật đơn; nếu payload.items không truyền -> không đổi chi tiết
     update: (id, payload) => OrderModel.update(id, payload.order, payload.items),
 
-    remove: (id) => OrderModel.remove(id),``
+    remove: (id) => OrderModel.remove(id),
 
     // Chi tiết đơn (admin/nhân viên): gồm order + items
     detail: (id) => OrderModel.findById(id),
@@ -43,6 +43,20 @@ const OrderService = {
     cancelMine: async (userId, orderId) => {
         // Trả về { ok:true } hoặc { ok:false, status, message }
         return OrderModel.cancelMine(userId, orderId);
+    },
+     // Cập nhật trạng thái đơn hàng (dùng cho thanh toán)
+    updateStatus: async (orderId, status) => {
+        const pool = require("../config/db.config");
+        try {
+            await pool.query(
+                `UPDATE "order" SET status = $2, updated_at = now() WHERE id = $1`,
+                [orderId, status]
+            );
+            return { ok: true };
+        } catch (err) {
+            console.error("updateStatus error:", err);
+            return { ok: false, error: err.message };
+        }
     },
 };
 

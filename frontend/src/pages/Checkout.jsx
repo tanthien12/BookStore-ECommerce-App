@@ -220,8 +220,8 @@ export default function Checkout() {
             const orderId =
         created?.data?.order_id || created?.data?.id || null;
 
-      // 2️⃣ Nếu người dùng chọn QR (VNPay)
-      if (form.payment === "qr") {
+      // 2️⃣ Nếu người dùng chọn VNPay
+      if (form.payment === "vnpay") {
         const res = await fetch(
           "http://localhost:4000/api/vnpay/create-payment-url",
           {
@@ -230,7 +230,7 @@ export default function Checkout() {
             body: JSON.stringify({
               order_id: orderId,
               amount: total,
-              bankCode: "", // để rỗng để hiển thị QR mặc định
+              bankCode: "", // để rỗng để hiển thị VNpay
             }),
           }
         );
@@ -551,13 +551,13 @@ export default function Checkout() {
               <input
                 type="radio"
                 name="pay"
-                checked={form.payment === "bank"}
-                onChange={() => set("payment", "bank")}
+                checked={form.payment === "vnpay"}
+                onChange={() => set("payment", "vnpay")}
               />
               <div className="text-sm">
-                <div className="font-medium">Chuyển khoản ngân hàng</div>
+                <div className="font-medium">Thanh toán qua VNPay</div>
                 <div className="text-gray-500">
-                  Thông tin STK sẽ hiển thị sau khi đặt hàng.
+                  Chuyển hướng sang cổng VNPay để thanh toán online.
                 </div>
               </div>
             </label>
@@ -566,13 +566,13 @@ export default function Checkout() {
               <input
                 type="radio"
                 name="pay"
-                checked={form.payment === "qr"}
-                onChange={() => set("payment", "qr")}
+                checked={form.payment === "stripe"}
+                onChange={() => set("payment", "stripe")}
               />
               <div className="text-sm">
-                <div className="font-medium">Quét mã QR để thanh toán</div>
+                <div className="font-medium">Thanh toán bằng Stripe (thẻ)</div>
                 <div className="text-gray-500">
-                  Hiển thị mã QR ngay sau khi đặt.
+                  Dùng thẻ Visa / Master / JCB.
                 </div>
               </div>
             </label>

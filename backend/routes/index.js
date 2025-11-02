@@ -5,6 +5,8 @@ const router = express.Router();
 const uploadCtrl = require("../controllers/upload.controller");
 const { makeUploader } = require("../middlewares/upload.middleware");
 
+const ReviewController = require("../controllers/review.controller");
+
 const authController = require("../controllers/auth.controller");
 const bookController = require("../controllers/book.controller");
 const categoryController = require("../controllers/category.controller");
@@ -18,9 +20,13 @@ const AddressController = require("../controllers/address.controller");
 const WishlistController = require("../controllers/wishlist.controller");
 const VoucherController = require("../controllers/voucher.controller");
 
+
 const chatCtl = require("../controllers/chat.controller");
 const { authMiddleware } = require("../middlewares/auth.middleware");
 const sseHeaders = require("../middlewares/sse.middleware");
+
+const paymentController = require("../controllers/payment.controller");
+
 
 // ========== AUTH ==========
 router.post("/auth/register", authController.register);
@@ -125,6 +131,10 @@ const sseLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+//vnpay
+router.post("/vnpay/create-payment-url", paymentController.createVNPayUrl);
+router.get("/vnpay/return", paymentController.vnpayReturn);
+
 // ===== Chatbot
 router.get("/chat/health", chatCtl.health);
 router.get("/chat/stream-test", sseHeaders, chatCtl.streamTest);
@@ -134,3 +144,27 @@ router.post("/chat/start", chatCtl.start);
 router.get("/chat/stream", sseHeaders, sseLimiter, chatCtl.stream);
 
 module.exports = router;
+
+//Province, District, Ward
+router.get("/provinces", AddressController.provinces);          
+router.get("/districts", AddressController.districts);          
+router.get("/wards", AddressController.wards); 
+
+// ========== REVIEWS ==========
+// Lấy tất cả review gốc + replies cho 1 sản phẩm
+router.get("/books/:bookId/reviews", ReviewController.listByBook);
+
+// Lấy review gốc của chính user cho sản phẩm
+router.get("/books/:bookId/my-review", requireAuth, ReviewController.myReview);
+
+// User tạo / update đánh giá gốc
+router.post("/reviews", requireAuth, ReviewController.upsertRoot);
+
+// Xóa 1 review gốc hoặc 1 reply (chủ sở hữu hoặc admin)
+router.delete("/reviews/:id", requireAuth, ReviewController.remove);
+
+// Thêm reply dưới review gốc (chỉ admin hoặc owner review gốc)
+router.post("/reviews/:id/replies", requireAuth, ReviewController.addReply);
+
+// Sửa reply (chỉ người tạo reply)
+router.put("/replies/:replyId", requireAuth, ReviewController.updateReply);

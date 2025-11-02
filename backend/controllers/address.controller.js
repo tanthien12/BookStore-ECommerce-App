@@ -1,5 +1,66 @@
 // backend/controllers/address.controller.js
 const addressService = require('../services/address.service');
+const vnData = require("../data/vn-address.json");
+
+// Lấy danh sách tỉnh/thành
+exports.provinces = async (req, res, next) => {
+  try {
+    const provinces = vnData.map((p) => ({
+      code: p.code,
+      name: p.name,
+    }));
+    res.json({ success: true, data: provinces });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Lấy danh sách quận/huyện theo tỉnh
+exports.districts = async (req, res, next) => {
+  try {
+    const { provinceCode } = req.query;
+    const province = vnData.find((p) => p.code === provinceCode);
+
+    if (!province) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy tỉnh/thành." });
+    }
+
+    const districts = province.districts.map((d) => ({
+      code: d.code,
+      name: d.name,
+    }));
+
+    res.json({ success: true, data: districts });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Lấy danh sách phường/xã theo quận/huyện
+exports.wards = async (req, res, next) => {
+  try {
+    const { provinceCode, districtCode } = req.query;
+    const province = vnData.find((p) => p.code === provinceCode);
+    const district = province?.districts.find((d) => d.code === districtCode);
+
+    if (!province || !district) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy quận/huyện." });
+    }
+
+    const wards = district.wards.map((w) => ({
+      code: w.code,
+      name: w.name,
+    }));
+
+    res.json({ success: true, data: wards });
+  } catch (error) {
+    next(error);
+  }
+};
 
 exports.list = async (req, res, next) => {
     try {

@@ -1,31 +1,59 @@
+// src/hooks/useCategories.js
 import { useEffect, useState } from "react";
 import summaryApi from "../common";
 
 export default function useCategories() {
-    const [categories, setCategories] = useState([]);
-    const [loadingCategories, setLoadingCategories] = useState(false);
-    const [categoriesError, setCategoriesError] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        let isMounted = true;
-        (async () => {
-            try {
-                setLoadingCategories(true);
-                setCategoriesError("");
-                const response = await fetch(summaryApi.url(summaryApi.category.get), {
-                    headers: { "Content-Type": "application/json" }
-                });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok) throw new Error(data?.message || "Không thể tải danh mục");
-                if (isMounted) setCategories(Array.isArray(data?.data || data) ? (data.data || data) : []);
-            } catch (error) {
-                if (isMounted) setCategoriesError(error.message || "Lỗi tải danh mục");
-            } finally {
-                if (isMounted) setLoadingCategories(false);
-            }
-        })();
-        return () => { isMounted = false; };
-    }, []);
+  useEffect(() => {
+    let active = true;
 
-    return { categories, loadingCategories, categoriesError };
+    async function fetchCategories() {
+      try {
+        const res = await fetch(summaryApi.url("/categories"));
+        // backend của bạn đôi khi trả sai cú pháp → mình vẫn cố gắng đọc
+        let json = null;
+        try {
+          json = await res.json();
+        } catch (err) {
+          console.error("Parse JSON category lỗi:", err);
+          json = null;
+        }
+
+        if (!active) return;
+
+        // các trường hợp có thể gặp:
+        // 1) { success: true, data: [...] }
+        // 2) { items: [...], total: ... }
+        // 3) [...] (trả thẳng mảng)
+        let list = [];
+
+        if (Array.isArray(json)) {
+          list = json;
+        } else if (json && Array.isArray(json.data)) {
+          list = json.data;
+        } else if (json && Array.isArray(json.items)) {
+          list = json.items;
+        } else {
+          list = [];
+        }
+
+        setCategories(list);
+      } catch (err) {
+        console.error("Lỗi tải category:", err);
+        if (active) setCategories([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    fetchCategories();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return { categories, loading };
 }

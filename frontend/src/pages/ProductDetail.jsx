@@ -158,9 +158,9 @@ export default function ProductDetail() {
   }, [id]);
 
   // handlers
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!book) return;
-    const ok = addToCart(
+    const ok = await addToCart(
       {
         id: book.id,
         title: book.title,
@@ -172,9 +172,9 @@ export default function ProductDetail() {
     if (ok) toast.success("Đã thêm vào giỏ hàng", { autoClose: 1400 });
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!book) return;
-    const ok = addToCart(
+    const ok = await addToCart(
       {
         id: book.id,
         title: book.title,

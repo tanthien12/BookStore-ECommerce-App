@@ -11,6 +11,7 @@ const authController = require("../controllers/auth.controller");
 const bookController = require("../controllers/book.controller");
 const categoryController = require("../controllers/category.controller");
 const orderController = require("../controllers/order.controller");
+const cartController = require("../controllers/cart.controller");
 
 const { authGuard: requireAuth, requireRole } = require("../middlewares/auth.middleware");
 const adminUserCtrl = require("../controllers/admin.user.controller");
@@ -62,6 +63,13 @@ router.get("/orders/:id", orderController.detail);
 router.post("/orders", orderController.create);
 router.put("/orders/:id", orderController.update);
 router.delete("/orders/:id", orderController.remove);
+
+// ========== CART ==========
+router.get("/cart", requireAuth, cartController.list);             // GET /api/cart
+router.post("/cart", requireAuth, cartController.add);             // POST /api/cart
+router.put("/cart/:id", requireAuth, cartController.update);       // PUT /api/cart/:id
+router.delete("/cart/:id", requireAuth, cartController.remove);    // DELETE /api/cart/:id
+router.delete("/cart", requireAuth, cartController.clear);         // DELETE /api/cart
 
 // ========== BOOK ==========
 router.get("/books", bookController.list); // ?q=&page=&limit=&sort=newest

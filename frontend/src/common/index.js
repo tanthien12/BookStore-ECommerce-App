@@ -83,6 +83,16 @@ const summaryApi = {
     delete: (id) => `/orders/${id}`,// DELETE
   },
 
+  // ====== Cart ======
+  
+cart: {
+  list: "/cart",                 // GET
+  add: "/cart",                  // POST
+  update: (id) => `/cart/${id}`, // PUT
+  remove: (id) => `/cart/${id}`, // DELETE
+  clear: "/cart",                // DELETE all
+},
+
   // ====== Admin: Users ======
   user: {
     list: "/admin/users",                 // GET ?q=&page=&limit=&sort=newest&role_id=&is_active=&created_from=&created_to=

@@ -38,6 +38,7 @@ import CheckoutSuccess from '../pages/CheckoutSuccess.jsx';
 import Checkout from '../pages/Checkout.jsx';
 import SearchResult from '../pages/SearchResult.jsx';
 
+
 const router = createBrowserRouter([
     {
         path: '/',

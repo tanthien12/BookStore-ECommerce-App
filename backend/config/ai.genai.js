@@ -1,19 +1,6 @@
-// // backend/config/ai.genai.js
-// // SDK mới: @google/genai (YÊU CẦU Node >= 20)
-// const { GoogleGenAI } = require("@google/genai");
 
-// const { GOOGLE_API_KEY, GEMINI_MODEL } = process.env;
-// if (!GOOGLE_API_KEY) {
-//     console.warn("[ai.genai] Missing GOOGLE_API_KEY in env");
-// }
 
-// // ✅ Constructor nhận { apiKey }
-// const ai = new GoogleGenAI({ apiKey: GOOGLE_API_KEY });
-
-// const MODEL = GEMINI_MODEL || "gemini-2.0-flash-001"; // đặt mặc định hợp lý
-
-// module.exports = { ai, MODEL };
-
+//code goc
 // backend/config/ai.genai.js
 // SDK mới: @google/genai (Node >= 20)
 const { GoogleGenAI } = require("@google/genai");

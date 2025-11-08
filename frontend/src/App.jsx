@@ -60,6 +60,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { CartProvider } from "./context/CartContext";
 import ChatLauncher from "./components/chatbot/ChatLauncher";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import SiteFooter from "./components/layout/SiteFooter";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -81,6 +82,7 @@ const App = () => {
           <Header />
           <ChatLauncher />
           <Outlet />
+          <SiteFooter />
         </CartProvider>
       )}
     </GoogleOAuthProvider>

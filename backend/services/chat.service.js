@@ -1,7 +1,10 @@
 
+
+
+// //code goc
 // // backend/services/chat.service.js
 // const { pool } = require("../config/db.config");
-// const { ai, MODEL } = require("../config/ai.genai");
+// const { ai, getModelName, SAFE_MODELS } = require("../config/ai.genai");
 // const systemPrompt = require("../config/ai.system-prompt");
 // const { TOOL_REGISTRY } = require("./chat.tools");
 
@@ -37,26 +40,77 @@
 //     return rows.map((r) => ({ sender: r.sender, text: r.message_text }));
 // }
 
-// /** Convert history in DB -> contents[] cho @google/genai */
+// // Convert history -> contents (chỉ user/model; KHÔNG dùng system)
 // function toContentsFromHistory(history) {
 //     return history.map((m) => ({
-//         role: m.sender === "user" ? "user" : m.sender === "ai" ? "model" : "system",
+//         role: m.sender === "user" ? "user" : "model",
 //         parts: [{ text: m.text }],
 //     }));
 // }
 
-// /** Phase A: lập kế hoạch tool bằng contents */
+// const isNotFoundModel = (err) => {
+//     const code = err?.error?.code || err?.code;
+//     const status = err?.error?.status || err?.status;
+//     const msg = err?.error?.message || err?.message || "";
+//     return code === 404 || status === "NOT_FOUND" ||
+//         /not found for API version/i.test(msg) ||
+//         /is not supported for generateContent/i.test(msg);
+// };
+
+// // ==== wrappers có retry khi model không hỗ trợ ====
+// async function genContentWithRetry({ contents, systemInstruction }) {
+//     let model = getModelName();
+//     try {
+//         return await ai.models.generateContent({
+//             model,
+//             contents,
+//             config: { systemInstruction: { parts: [{ text: systemInstruction }] } }, // <- ĐÚNG CHUẨN
+//         });
+//     } catch (e) {
+//         if (isNotFoundModel(e)) {
+//             model = SAFE_MODELS[0];
+//             return await ai.models.generateContent({
+//                 model,
+//                 contents,
+//                 config: { systemInstruction: { parts: [{ text: systemInstruction }] } },
+//             });
+//         }
+//         throw e;
+//     }
+// }
+
+// async function genStreamWithRetry({ contents, systemInstruction }) {
+//     let model = getModelName();
+//     try {
+//         return await ai.models.generateContentStream({
+//             model,
+//             contents,
+//             config: { systemInstruction: { parts: [{ text: systemInstruction }] } }, // <- ĐÚNG CHUẨN
+//         });
+//     } catch (e) {
+//         if (isNotFoundModel(e)) {
+//             model = SAFE_MODELS[0];
+//             return await ai.models.generateContentStream({
+//                 model,
+//                 contents,
+//                 config: { systemInstruction: { parts: [{ text: systemInstruction }] } },
+//             });
+//         }
+//         throw e;
+//     }
+// }
+
+// // ===== Phase A: quyết định TOOL_CALL (KHÔNG dùng system role trong contents)
 // async function planToolIfAny({ history, userText, userId }) {
 //     const contents = [
-//         { role: "system", parts: [{ text: systemPrompt }] },
 //         ...toContentsFromHistory(history),
 //         { role: "user", parts: [{ text: userText }] },
 //         {
-//             role: "system",
+//             role: "user",
 //             parts: [
 //                 {
 //                     text:
-//                         'Nếu cần gọi tool, hãy in đúng 1 dòng duy nhất:\n' +
+//                         'Hướng dẫn dành cho hệ thống: Nếu cần gọi tool, hãy in đúng 1 dòng duy nhất:\n' +
 //                         'TOOL_CALL: {"name":"<tool_name>","arguments":{...}}\n' +
 //                         "Nếu không cần tool, trả lời bình thường.",
 //                 },
@@ -64,12 +118,11 @@
 //         },
 //     ];
 
-//     const result = await ai.models.generateContent({
-//         model: MODEL,
+//     const result = await genContentWithRetry({
 //         contents,
+//         systemInstruction: systemPrompt, // chỉ 1 systemInstruction
 //     });
 
-//     // Tương thích nhiều version SDK: lấy text từ .text hoặc .response.text()
 //     const text =
 //         (typeof result?.text === "string" && result.text) ||
 //         (typeof result?.response?.text === "function" && result.response.text()) ||
@@ -92,6 +145,7 @@
 //         used: true,
 //         toolName: spec.name,
 //         toolArgs: spec.arguments || {},
+//         toolOutput: out,
 //         toolContextText: `[Tool ${spec.name}]: ${JSON.stringify({
 //             input: spec.arguments || {},
 //             output: out,
@@ -103,7 +157,7 @@
 //     try {
 //         const userId = user?.id || null;
 
-//         // Lưu user msg
+//         // lưu tin user
 //         await saveMessage(conversationId, "user", userInput);
 
 //         const history = await getHistory(conversationId);
@@ -116,28 +170,35 @@
 //             console.error("[planToolIfAny] error:", e?.message || e);
 //         }
 
-//         // Phase B: final streaming bằng contents
+//         // Phase B: final stream (KHÔNG dùng system role; tool context đưa vào user message)
 //         const finalContents = [
-//             { role: "system", parts: [{ text: systemPrompt }] },
 //             ...toContentsFromHistory(history),
 //             ...(plan.used
 //                 ? [
-//                     { role: "system", parts: [{ text: `Dữ liệu tool:\n${plan.toolContextText}` }] },
-//                     {
-//                         role: "system",
-//                         parts: [{ text: "Hãy dựa trên dữ liệu tool ở trên để trả lời cuối cùng, gợi ý rõ ràng." }],
-//                     },
+//                     { role: "user", parts: [{ text: `Dữ liệu tool:\n${plan.toolContextText}` }] },
+//                     { role: "user", parts: [{ text: "Hãy dựa trên dữ liệu tool ở trên để trả lời cuối cùng, gợi ý rõ ràng." }] },
 //                 ]
 //                 : []),
-//             { role: "user", parts: [{ text: userInput }] },
 //         ];
 
-//         const resp = await ai.models.generateContentStream({
-//             model: MODEL,
+//         // Phát UI event nếu search_books dùng được
+//         if (plan.used && plan.toolName === "search_books" && plan.toolOutput?.items?.length) {
+//             const items = plan.toolOutput.items.map(b => ({
+//                 id: b.id,
+//                 title: b.title,
+//                 author: b.author || "",
+//                 price: Number(b.price),
+//                 rating: typeof b.rating_avg === "number" ? Number(b.rating_avg) : null,
+//                 image: b.image_url || `https://placehold.co/200x200?text=${encodeURIComponent(b.title.slice(0, 18))}`,
+//             }));
+//             sseWrite(res, "ui", { type: "products", items });
+//         }
+
+//         const resp = await genStreamWithRetry({
 //             contents: finalContents,
+//             systemInstruction: systemPrompt, // chỉ 1 systemInstruction
 //         });
 
-//         // Một số version trả {stream}, một số trả AsyncIterable trực tiếp
 //         const iter = resp?.stream ?? resp;
 
 //         let full = "";
@@ -160,7 +221,9 @@
 //             "ai",
 //             full,
 //             null,
-//             plan.used ? { tool: plan.toolName, args: plan.toolArgs } : null
+//             plan.used
+//                 ? { tool: plan.toolName, args: plan.toolArgs, output: plan.toolOutput || null }
+//                 : null
 //         );
 //     } catch (err) {
 //         console.error("[chat.stream] error:", err?.name, err?.message);
@@ -175,8 +238,8 @@
 // }
 
 // module.exports = { startConversation, saveMessage, streamGemini };
-
-// backend/services/chat.service.js
+//code sau
+// backend/src/services/chat.service.js
 const { pool } = require("../config/db.config");
 const { ai, getModelName, SAFE_MODELS } = require("../config/ai.genai");
 const systemPrompt = require("../config/ai.system-prompt");
@@ -214,7 +277,6 @@ async function getHistory(conversationId) {
     return rows.map((r) => ({ sender: r.sender, text: r.message_text }));
 }
 
-// Convert history -> contents (chỉ user/model; KHÔNG dùng system)
 function toContentsFromHistory(history) {
     return history.map((m) => ({
         role: m.sender === "user" ? "user" : "model",
@@ -226,19 +288,21 @@ const isNotFoundModel = (err) => {
     const code = err?.error?.code || err?.code;
     const status = err?.error?.status || err?.status;
     const msg = err?.error?.message || err?.message || "";
-    return code === 404 || status === "NOT_FOUND" ||
+    return (
+        code === 404 ||
+        status === "NOT_FOUND" ||
         /not found for API version/i.test(msg) ||
-        /is not supported for generateContent/i.test(msg);
+        /is not supported for generateContent/i.test(msg)
+    );
 };
 
-// ==== wrappers có retry khi model không hỗ trợ ====
 async function genContentWithRetry({ contents, systemInstruction }) {
     let model = getModelName();
     try {
         return await ai.models.generateContent({
             model,
             contents,
-            config: { systemInstruction: { parts: [{ text: systemInstruction }] } }, // <- ĐÚNG CHUẨN
+            config: { systemInstruction: { parts: [{ text: systemInstruction }] } },
         });
     } catch (e) {
         if (isNotFoundModel(e)) {
@@ -259,7 +323,7 @@ async function genStreamWithRetry({ contents, systemInstruction }) {
         return await ai.models.generateContentStream({
             model,
             contents,
-            config: { systemInstruction: { parts: [{ text: systemInstruction }] } }, // <- ĐÚNG CHUẨN
+            config: { systemInstruction: { parts: [{ text: systemInstruction }] } },
         });
     } catch (e) {
         if (isNotFoundModel(e)) {
@@ -274,28 +338,23 @@ async function genStreamWithRetry({ contents, systemInstruction }) {
     }
 }
 
-// ===== Phase A: quyết định TOOL_CALL (KHÔNG dùng system role trong contents)
+// ===== Phase A: quyết định TOOL_CALL =====
 async function planToolIfAny({ history, userText, userId }) {
     const contents = [
         ...toContentsFromHistory(history),
         { role: "user", parts: [{ text: userText }] },
         {
             role: "user",
-            parts: [
-                {
-                    text:
-                        'Hướng dẫn dành cho hệ thống: Nếu cần gọi tool, hãy in đúng 1 dòng duy nhất:\n' +
-                        'TOOL_CALL: {"name":"<tool_name>","arguments":{...}}\n' +
-                        "Nếu không cần tool, trả lời bình thường.",
-                },
-            ],
+            parts: [{
+                text:
+                    'Hướng dẫn dành cho hệ thống: Nếu cần gọi tool, hãy in đúng 1 dòng duy nhất:\n' +
+                    'TOOL_CALL: {"name":"<tool_name>","arguments":{...}}\n' +
+                    "Nếu không cần tool, trả lời bình thường.",
+            }],
         },
     ];
 
-    const result = await genContentWithRetry({
-        contents,
-        systemInstruction: systemPrompt, // chỉ 1 systemInstruction
-    });
+    const result = await genContentWithRetry({ contents, systemInstruction: systemPrompt });
 
     const text =
         (typeof result?.text === "string" && result.text) ||
@@ -319,6 +378,7 @@ async function planToolIfAny({ history, userText, userId }) {
         used: true,
         toolName: spec.name,
         toolArgs: spec.arguments || {},
+        toolOutput: out, // <== dùng phát UI
         toolContextText: `[Tool ${spec.name}]: ${JSON.stringify({
             input: spec.arguments || {},
             output: out,
@@ -326,16 +386,41 @@ async function planToolIfAny({ history, userText, userId }) {
     };
 }
 
+// ===== Phase 3: sở thích hội thoại (metadata) =====
+async function mergeConversationMetadata(conversationId, patch = {}) {
+    await pool.query(
+        `
+    UPDATE chatbot_conversation
+    SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+    WHERE id = $1
+  `,
+        [conversationId, JSON.stringify(patch)]
+    );
+}
+
+function extractPrefsFromTool(toolName, toolArgs) {
+    const pref = {};
+    if (["search_books", "filter_by_price", "list_best_sellers"].includes(toolName)) {
+        if (toolArgs?.category) pref.preferred_category = toolArgs.category;
+    }
+    if (toolName === "filter_by_price" && typeof toolArgs?.max_price === "number") {
+        pref.max_budget = toolArgs.max_price;
+    }
+    if (toolArgs?.query) pref.last_query = toolArgs.query;
+    return Object.keys(pref).length ? pref : null;
+}
+
+// ===== Stream chính (Phase 1–4) =====
 async function streamGemini({ res, conversationId, user, userInput }) {
     try {
         const userId = user?.id || null;
 
-        // lưu tin user
+        // Lưu user message
         await saveMessage(conversationId, "user", userInput);
 
         const history = await getHistory(conversationId);
 
-        // Phase A: detect tool
+        // Phase A: detect & run tool
         let plan = { used: false };
         try {
             plan = await planToolIfAny({ history, userText: userInput, userId });
@@ -343,7 +428,54 @@ async function streamGemini({ res, conversationId, user, userInput }) {
             console.error("[planToolIfAny] error:", e?.message || e);
         }
 
-        // Phase B: final stream (KHÔNG dùng system role; tool context đưa vào user message)
+        // Phase 1: UI payload sản phẩm (giữ nguyên)
+        const maybeBooks =
+            plan.used &&
+                ["search_books", "get_similar_books", "filter_by_price", "list_best_sellers"].includes(plan.toolName) &&
+                plan.toolOutput?.items?.length
+                ? plan.toolOutput.items
+                : null;
+
+        if (maybeBooks) {
+            const items = maybeBooks.map((b) => ({
+                id: b.id,
+                title: b.title,
+                author: b.author || "",
+                price: Number(b.price),
+                rating: typeof b.rating_avg === "number" ? Number(b.rating_avg) : null,
+                image:
+                    b.image_url ||
+                    `https://placehold.co/200x200?text=${encodeURIComponent((b.title || "Book").slice(0, 18))}`,
+            }));
+            sseWrite(res, "ui", { type: "products", items });
+        }
+
+        // ===== Phase 4: UI payload order status =====
+        if (plan.used && plan.toolName === "get_order_status" && plan.toolOutput?.order) {
+            const o = plan.toolOutput.order;
+            // Chuẩn hoá dữ liệu gửi FE (đủ cho card + deeplink)
+            sseWrite(res, "ui", {
+                type: "order_status",
+                order: {
+                    id: o.id,
+                    status: o.status,
+                    placed_at: o.placed_at,
+                    grand_total: typeof o.grand_total === "number" ? o.grand_total : Number(o.grand_total),
+                    tracking_number: o.tracking_number || null,
+                    payment_status: o.payment_status || null,
+                    payment_method: o.payment_method || null,
+                    amount_paid: o.amount_paid != null ? Number(o.amount_paid) : null,
+                },
+            });
+        }
+
+        // Phase 3: lưu sở thích (nếu có)
+        if (plan.used) {
+            const prefPatch = extractPrefsFromTool(plan.toolName, plan.toolArgs);
+            if (prefPatch) mergeConversationMetadata(conversationId, prefPatch).catch(() => { });
+        }
+
+        // Phase B: final stream — KHÔNG thêm lại userInput (đã nằm trong history)
         const finalContents = [
             ...toContentsFromHistory(history),
             ...(plan.used
@@ -352,12 +484,11 @@ async function streamGemini({ res, conversationId, user, userInput }) {
                     { role: "user", parts: [{ text: "Hãy dựa trên dữ liệu tool ở trên để trả lời cuối cùng, gợi ý rõ ràng." }] },
                 ]
                 : []),
-            { role: "user", parts: [{ text: userInput }] },
         ];
 
         const resp = await genStreamWithRetry({
             contents: finalContents,
-            systemInstruction: systemPrompt, // chỉ 1 systemInstruction
+            systemInstruction: systemPrompt,
         });
 
         const iter = resp?.stream ?? resp;
@@ -382,7 +513,7 @@ async function streamGemini({ res, conversationId, user, userInput }) {
             "ai",
             full,
             null,
-            plan.used ? { tool: plan.toolName, args: plan.toolArgs } : null
+            plan.used ? { tool: plan.toolName, args: plan.toolArgs, output: plan.toolOutput || null } : null
         );
     } catch (err) {
         console.error("[chat.stream] error:", err?.name, err?.message);

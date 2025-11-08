@@ -4,7 +4,6 @@ import FlashSale from "../components/layout/FlashSale";
 import TrendingShelf from "../components/layout/TrendingShelf";
 import SuggestForYou from "../components/layout/SuggestForYou";
 import BannerAds from "../components/layout/BannerAds";
-import SiteFooter from "../components/layout/SiteFooter";
 
 export default function Home() {
   return (
@@ -15,8 +14,6 @@ export default function Home() {
       <FlashSale />
       <TrendingShelf />
       <SuggestForYou />
-
-      <SiteFooter />
     </div>
   );
 }

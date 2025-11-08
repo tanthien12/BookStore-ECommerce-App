@@ -220,29 +220,27 @@ export default function Checkout() {
             const orderId =
         created?.data?.order_id || created?.data?.id || null;
 
-      // 2️⃣ Nếu người dùng chọn VNPay
+      // nếu chọn VNPay thì gọi backend để tạo link
       if (form.payment === "vnpay") {
-        const res = await fetch(
-          "http://localhost:4000/api/vnpay/create-payment-url",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              order_id: orderId,
-              amount: total,
-              bankCode: "", // để rỗng để hiển thị VNpay
-            }),
-          }
-        );
+        const res = await fetch("http://localhost:4000/api/vnpay/create-payment-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order_id: orderId,
+            amount: total,
+            bankCode: "", 
+          }),
+        });
         const data = await res.json();
         if (data.success && data.paymentUrl) {
           window.location.href = data.paymentUrl;
           return;
         } else {
-          alert("Không thể tạo link VNPay, vui lòng thử lại sau.");
+          alert("Không tạo được link VNPay");
           return;
         }
       }
+
 
       localStorage.setItem(
         "order_draft",

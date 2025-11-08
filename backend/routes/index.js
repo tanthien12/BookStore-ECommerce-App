@@ -13,6 +13,7 @@ const categoryController = require("../controllers/category.controller");
 const orderController = require("../controllers/order.controller");
 const cartController = require("../controllers/cart.controller");
 
+
 const { authGuard: requireAuth, requireRole } = require("../middlewares/auth.middleware");
 const adminUserCtrl = require("../controllers/admin.user.controller");
 const adminRoleCtrl = require("../controllers/admin.role.controller");
@@ -27,6 +28,7 @@ const { authMiddleware } = require("../middlewares/auth.middleware");
 const sseHeaders = require("../middlewares/sse.middleware");
 
 const paymentController = require("../controllers/payment.controller");
+
 
 
 // ========== AUTH ==========
@@ -73,10 +75,12 @@ router.delete("/cart", requireAuth, cartController.clear);         // DELETE /ap
 
 // ========== BOOK ==========
 router.get("/books", bookController.list); // ?q=&page=&limit=&sort=newest
+router.get("/books/flash-sale", bookController.getFlashSaleBooks);
 router.get("/books/:id", bookController.detail);
 router.post("/books", bookController.create);
 router.put("/books/:id", bookController.update);
 router.delete("/books/:id", bookController.remove);
+
 
 // ===== Admin: Users =====
 // router.get('/admin/users', requireAuth, requireRole('admin'), adminUserCtrl.list);
@@ -159,20 +163,12 @@ router.get("/districts", AddressController.districts);
 router.get("/wards", AddressController.wards); 
 
 // ========== REVIEWS ==========
-// Lấy tất cả review gốc + replies cho 1 sản phẩm
+// public
 router.get("/books/:bookId/reviews", ReviewController.listByBook);
 
-// Lấy review gốc của chính user cho sản phẩm
-router.get("/books/:bookId/my-review", requireAuth, ReviewController.myReview);
-
-// User tạo / update đánh giá gốc
+// private
+router.get("/books/:bookId/my-review", requireAuth, ReviewController.getMine);
 router.post("/reviews", requireAuth, ReviewController.upsertRoot);
-
-// Xóa 1 review gốc hoặc 1 reply (chủ sở hữu hoặc admin)
-router.delete("/reviews/:id", requireAuth, ReviewController.remove);
-
-// Thêm reply dưới review gốc (chỉ admin hoặc owner review gốc)
 router.post("/reviews/:id/replies", requireAuth, ReviewController.addReply);
-
-// Sửa reply (chỉ người tạo reply)
-router.put("/replies/:replyId", requireAuth, ReviewController.updateReply);
+router.put("/replies/:id", requireAuth, ReviewController.updateReply);
+router.delete("/reviews/:id", requireAuth, ReviewController.deleteAny);

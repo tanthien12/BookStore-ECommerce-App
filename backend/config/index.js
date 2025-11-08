@@ -17,6 +17,12 @@ const env = {
     JWT_ACCESS_EXPIRES: process.env.JWT_ACCESS_EXPIRES || "15m",
     JWT_REFRESH_EXPIRES: process.env.JWT_REFRESH_EXPIRES || "7d",
 
+    // 🔐 VNPay 
+    VNP_TMN_CODE: process.env.VNP_TMN_CODE,
+    VNP_HASH_SECRET: process.env.VNP_HASH_SECRET,
+    VNP_URL: process.env.VNP_URL,
+    VNP_RETURN_URL: process.env.VNP_RETURN_URL,
+
     APP_URL: process.env.APP_URL || "http://localhost:5173",
 };
 

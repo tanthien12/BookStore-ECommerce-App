@@ -1,114 +1,93 @@
-// backend/controllers/payment.controller.js
+// controllers/payment.controller.js
 const PaymentService = require("../services/payment.service");
 const OrderService = require("../services/order.service");
 
-/**
- * FE gọi vào đây để tạo link VNPay
- * Có 2 kiểu:
- * 1) FE đã tạo order trước → gửi order_id + amount → tạo link dựa trên order đã có
- * 2) FE CHƯA tạo order → (flow khác, bạn đã có trong PaymentService.createVNPayPayment)
- */
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
+/** VNPay: tạo URL thanh toán (không tạo payment ở bước này) */
 async function createVNPayUrl(req, res) {
   try {
-    const userId = req.user?.id || null;
-    const { amount, bankCode = "", order_id } = req.body;
+    const { order_id, amount } = req.body || {};
+    const clientIp =
+      req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+      req.connection?.remoteAddress ||
+      req.ip ||
+      "127.0.0.1";
 
-    // Nếu FE gửi sẵn order_id thì dùng luôn
-    if (order_id) {
-      const paymentUrl = await PaymentService.createVNPayUrlFromExistingOrder({
-        orderId: order_id,
-        amount,
-        bankCode,
-        ipAddr:
-          req.headers["x-forwarded-for"] ||
-          req.connection?.remoteAddress ||
-          req.socket?.remoteAddress ||
-          "127.0.0.1",
-      });
-
-      return res.json({
-        success: true,
-        paymentUrl,
-      });
+    if (!order_id) {
+      return res.status(400).json({ success: false, error: true, message: "order_id is required" });
     }
 
-    // Nếu không có order_id → dùng flow "tạo đơn + tạo payment + sinh URL"
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Cần đăng nhập để thanh toán.",
-      });
-    }
-
-    // TODO: nếu bạn muốn cho phép thanh toán nhanh từ giỏ thì truyền items ở body
-    const payment = await PaymentService.createVNPayPayment({
-      userId,
-      items: req.body.items || [],
+    const paymentUrl = await PaymentService.createVNPayUrlFromExistingOrder({
+      orderId: order_id,
       amount,
-      shipping_address: req.body.shipping_address,
-      shipping_fee: req.body.shipping_fee,
-      discount_total: req.body.discount_total,
+      ipAddr: clientIp,
     });
 
-    return res.json({
-      success: true,
-      paymentUrl: payment.paymentUrl,
-      order: payment.order,
-    });
+    return res.json({ success: true, paymentUrl });
   } catch (err) {
-    console.error("createVNPayUrl error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Tạo link thanh toán thất bại",
-    });
+    console.error("[VNPay] createVNPayUrl error:", err);
+    return res.status(500).json({ success: false, error: true, message: err.message });
   }
 }
 
+/** VNPay: return URL – Service sẽ tự verify + cập nhật DB */
 async function vnpayReturn(req, res) {
   try {
     const result = await PaymentService.handleVNPayReturn(req.query);
+    // result: { ok: boolean, orderId, status, reason? }
 
-    // thành công
-    if (result.ok) {
-      // nếu bạn muốn chắc nữa vẫn có thể gọi lên OrderService để update lại
-      if (result.orderId) {
-        await OrderService.updateStatus(result.orderId, "paid");
-      }
-
-      // redirect về FE
-      const FE_URL =
-        process.env.APP_URL ||
-        process.env.FRONTEND_URL ||
-        "http://localhost:5173";
-
-      return res.redirect(
-        `${FE_URL}/checkout/success?paid=1&order_id=${result.orderId}`
-      );
+    if (!result.ok) {
+      const reason = result.reason || "unknown";
+      return res.redirect(`${CLIENT_URL}/checkout/fail?reason=${encodeURIComponent(reason)}`);
     }
 
-    // thất bại
-    const FE_URL =
-      process.env.APP_URL ||
-      process.env.FRONTEND_URL ||
-      "http://localhost:5173";
-    return res.redirect(
-      `${FE_URL}/checkout/fail?reason=${encodeURIComponent(
-        result.status || result.reason || "failed"
-      )}`
-    );
+    // Thành công
+    return res.redirect(`${CLIENT_URL}/checkout/success?order_id=${result.orderId}`);
   } catch (err) {
-    console.error("vnpayReturn error:", err);
-    const FE_URL =
-      process.env.APP_URL ||
-      process.env.FRONTEND_URL ||
-      "http://localhost:5173";
-    return res.redirect(
-      `${FE_URL}/checkout/fail?reason=server_error`
-    );
+    console.error("[VNPay][RETURN] error:", err);
+    return res.redirect(`${CLIENT_URL}/checkout/fail?reason=server_error`);
+  }
+}
+
+/**
+ * COD: FE chỉ gọi endpoint này sau khi /checkout/success
+ * Lưu 1 payment 'unpaid' bám order cho thống nhất reporting
+ */
+async function codSuccess(req, res) {
+  try {
+    const { order_id } = req.body || {};
+    if (!order_id) {
+      return res.status(400).json({ success: false, error: true, message: "order_id is required" });
+    }
+
+    const order = await OrderService.detail(order_id);
+    if (!order) {
+      return res.status(404).json({ success: false, error: true, message: "ORDER_NOT_FOUND" });
+    }
+    if (order.payment_method !== "cod") {
+      return res.status(400).json({ success: false, error: true, message: "ORDER_NOT_COD" });
+    }
+
+    // Dùng hàm đã có trong service để tạo record
+    await PaymentService.createPaymentRecordSafe({
+      order_id,
+      method: "cod",
+      status: "unpaid",
+      amount_paid: 0,
+      currency: "VND",
+      transaction_id: null,
+    });
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("[COD][SUCCESS] error:", err);
+    return res.status(500).json({ success: false, error: true, message: err.message });
   }
 }
 
 module.exports = {
   createVNPayUrl,
   vnpayReturn,
+  codSuccess,
 };

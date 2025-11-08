@@ -89,7 +89,7 @@ const BookModel = {
     async findById(id) {
         const bookSql = `
       SELECT id, title, author, isbn, publisher, published_year, language, format,
-             price, stock, description, image_url, gallery_urls, rating_avg, rating_count,
+             price, sale_price, sale_start, sale_end, is_flash_sale, stock, sold_count, description, image_url, gallery_urls, rating_avg, rating_count,
              created_at, updated_at
       FROM bookstore.book
       WHERE id = $1
@@ -142,7 +142,7 @@ const BookModel = {
 
         const listSql = `
       SELECT b.id, b.title, b.author, b.isbn, b.publisher, b.published_year,
-             b.language, b.format, b.price, b.stock, b.image_url, b.gallery_urls,
+             b.language, b.format, b.price, b.sale_price, b.sale_start, b.sale_end, b.is_flash_sale, b.stock, b.sold_count, b.image_url, b.gallery_urls,
              b.rating_avg, b.rating_count, b.created_at, b.updated_at
       FROM bookstore.book b
       ${joins}
@@ -187,6 +187,48 @@ const BookModel = {
             client.release();
         }
     },
+
+    async listFlashSale({ limit = 10 } = {}) {
+        const sql = `
+            SELECT
+            id,
+            title,
+            image_url,
+            price,          -- giá gốc
+            sale_price,     -- giá đang sale
+            sale_start,
+            sale_end,
+            is_flash_sale
+            FROM bookstore.book
+            WHERE is_flash_sale = TRUE
+            AND sale_price IS NOT NULL
+            AND (sale_start IS NULL OR sale_start <= NOW())
+            AND (sale_end   IS NOT NULL AND NOW() < sale_end)
+            ORDER BY sale_end ASC
+            LIMIT $1;
+        `;
+        const { rows } = await pool.query(sql, [limit]);
+        return rows;
+    },
+    async expireFlashSales() {
+        const sql = `
+            UPDATE bookstore.book
+            SET
+            is_flash_sale = FALSE,
+            sale_price = NULL,
+            sale_start = NULL,
+            sale_end = NULL,
+            updated_at = NOW()
+            WHERE is_flash_sale = TRUE
+            AND sale_end IS NOT NULL
+            AND NOW() >= sale_end
+            RETURNING id;
+        `;
+        const { rows } = await pool.query(sql);
+        return rows; // trả về danh sách id đã expire (nếu cần)
+    }
+
+    
 };
 
 module.exports = BookModel;

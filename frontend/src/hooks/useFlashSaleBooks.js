@@ -3,49 +3,28 @@ import { useEffect, useState } from "react";
 import summaryApi from "../common";
 import normalizeBook from "../helpers/normalizeBook";
 
-export default function useFlashSaleBooks(limit = 8) {
+export default function useFlashSaleBooks(limit = 10) {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let active = true;
-
-    async function load() {
+    let alive = true;
+    (async () => {
       setLoading(true);
       try {
-        // tạm dùng sort=price_desc vì BE bạn có
-        const res = await fetch(
-          `${summaryApi.url("/books")}?sort=price_desc&limit=${limit}`
-        );
-        let json = null;
-        try {
-          json = await res.json();
-        } catch (e) {
-          console.error("Parse JSON flash sale lỗi:", e);
-        }
-
-        if (!active) return;
-
-        let list = [];
-        if (Array.isArray(json)) list = json;
-        else if (json && Array.isArray(json.data)) list = json.data;
-        else if (json && Array.isArray(json.items)) list = json.items;
-
-        const normalized = list.map((b) => (normalizeBook ? normalizeBook(b) : b));
-        setBooks(normalized);
+        const res = await fetch(summaryApi.url(`/books/flash-sale?limit=${limit}`));
+        const json = await res.json();
+        if (!alive) return;
+        const list = Array.isArray(json?.data) ? json.data : [];
+        setBooks(list.map(normalizeBook));
       } catch (err) {
-        console.error("Flash sale fetch error:", err);
-        if (active) setBooks([]);
+        if (alive) setBooks([]);
+        console.error("[FlashSale] fetch error:", err);
       } finally {
-        if (active) setLoading(false);
+        if (alive) setLoading(false);
       }
-    }
-
-    load();
-
-    return () => {
-      active = false;
-    };
+    })();
+    return () => { alive = false; };
   }, [limit]);
 
   return { books, loading };

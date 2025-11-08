@@ -37,6 +37,7 @@ import Vouchers from '../pages/user/Vouchers.jsx';
 import Security from '../pages/user/Security.jsx';
 import Support from '../pages/user/Support.jsx';
 import SearchResult from '../pages/SearchResult.jsx';
+import CheckoutFail from '../pages/CheckoutFail.jsx';
 
 const router = createBrowserRouter([
     {
@@ -72,6 +73,10 @@ const router = createBrowserRouter([
             {
                 path: '/checkout/success',
                 element: <CheckoutSuccess />
+            },
+            {
+                path: '/checkout/fail',
+                element: <CheckoutFail />
             },
             // ket thuc them moi
 

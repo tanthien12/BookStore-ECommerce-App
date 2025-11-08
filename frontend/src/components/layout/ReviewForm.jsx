@@ -1,87 +1,75 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import RatingStars from "./RatingStars";
 import { reviewApi } from "../../api/reviewApi";
 import { toast } from "react-toastify";
 
 export default function ReviewForm({ bookId, currentUser, onSubmitted }) {
-  const [myReview, setMyReview] = useState(null);
   const [rating, setRating] = useState(5);
   const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) return;
-    reviewApi.fetchMine(bookId).then((data) => {
-      if (data) {
-        setMyReview(data);
-        setRating(data.rating);
-        setContent(data.content || "");
-      }
-    });
-  }, [bookId, currentUser]);
+    let mounted = true;
+    const hasToken = localStorage.getItem("access_token") || localStorage.getItem("token");
 
-  const handleSave = async () => {
-    if (!currentUser) {
-      toast.info("Vui lòng đăng nhập để đánh giá");
-      return;
+    if ((currentUser || hasToken) && bookId) {
+      reviewApi.fetchMine(bookId).then((mine) => {
+        if (mounted && mine) {
+          setRating(mine.rating ?? 5);
+          setContent(mine.content ?? "");
+        }
+      });
     }
-    if (rating < 1 || rating > 5) {
-      toast.error("Chọn số sao từ 1 đến 5");
-      return;
+
+    return () => (mounted = false);
+  }, [currentUser, bookId]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const hasToken = localStorage.getItem("access_token") || localStorage.getItem("token");
+
+    if (!currentUser && !hasToken) {
+      return toast.info("Bạn cần đăng nhập để đánh giá.");
     }
-    if (!content.trim()) {
-      toast.error("Vui lòng nhập nội dung đánh giá");
-      return;
-    }
+
+    if (!content.trim()) return toast.warning("Nội dung đánh giá không được để trống.");
 
     try {
-      await reviewApi.upsert({
-        book_id: bookId,
-        rating,
-        content,
-      });
-      toast.success("Đã gửi đánh giá");
+      setLoading(true);
+      await reviewApi.upsert({ book_id: bookId, rating, content });
+      setLoading(false);
+      toast.success("Gửi đánh giá thành công!");
       onSubmitted?.();
     } catch (err) {
-      toast.error(err.message);
+      setLoading(false);
+      toast.error(err?.message || "Có lỗi xảy ra khi gửi đánh giá");
     }
   };
 
   return (
-    <div className="border rounded-lg p-4 bg-white">
-      <div className="flex items-center justify-between">
-        <div className="font-semibold text-gray-800 text-sm">
-          {myReview ? "Cập nhật đánh giá của bạn" : "Viết đánh giá của bạn"}
-        </div>
-
-        <div className="flex items-center gap-1">
-          {[1,2,3,4,5].map((n) => (
-            <button
-              key={n}
-              onClick={() => setRating(n)}
-              className={n <= rating ? "text-yellow-500" : "text-gray-300"}
-              style={{ fontSize: 20, lineHeight: 1 }}
-            >
-              ★
-            </button>
-          ))}
-        </div>
+    <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-semibold text-gray-800">Đánh giá của bạn</h4>
+        <RatingStars value={rating} onChange={setRating} size={22} />
       </div>
 
       <textarea
-        className="w-full border rounded-lg p-2 mt-2 text-sm"
-        rows={3}
-        placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
         value={content}
         onChange={(e) => setContent(e.target.value)}
+        placeholder="Nhập nội dung đánh giá của bạn..."
+        className="w-full min-h-[100px] p-3 rounded-xl bg-white border border-gray-300 text-gray-900
+                  placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200"
       />
 
-      <div className="text-right mt-2">
+      <div className="mt-3 text-right">
         <button
-          onClick={handleSave}
-          className="bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-lg"
+          type="submit"
+          disabled={loading}
+          className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition disabled:opacity-60"
         >
-          {myReview ? "Cập nhật" : "Gửi đánh giá"}
+          {loading ? "Đang gửi..." : "Gửi đánh giá"}
         </button>
       </div>
-    </div>
+    </form>
   );
 }

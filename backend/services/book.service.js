@@ -1,5 +1,6 @@
 // backend/services/book.service.js
 const BookModel = require("../models/book.model");
+const {pool} = require("../config/db.config");
 
 const BookService = {
     async create(payload) {
@@ -31,6 +32,13 @@ const BookService = {
     async list(params) {
         return BookModel.list(params);
     },
+    async findFlashSaleBooks(limit = 10) {
+        return BookModel.listFlashSale({ limit });
+    },
+    async expireFlashSales() {
+        return BookModel.expireFlashSales();
+  },
+
 };
 
 module.exports = BookService;

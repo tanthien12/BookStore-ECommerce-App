@@ -86,6 +86,8 @@ const App = () => {
         </CartProvider>
       )}
     </GoogleOAuthProvider>
+
+
   );
 };
 

@@ -77,6 +77,7 @@
 // code sau
 const { z } = require("zod");
 const OrderService = require("../services/order.service");
+const PaymentService = require("../services/payment.service");
 
 // Enum trạng thái theo DB: pending|paid|processing|shipped|delivered|cancelled|refunded
 const StatusEnum = z.enum([
@@ -101,6 +102,7 @@ const itemSchema = z.object({
 const baseOrderSchema = z.object({
     user_id: z.string().uuid().optional(),
     status: StatusEnum.default("pending"),
+    payment_method: z.enum(["cod", "vnpay", "stripe"]).optional(),
     shipping_fee: z.coerce.number().nonnegative().default(0),
     discount_total: z.coerce.number().nonnegative().default(0),
     shipping_address: z.any().optional(), // JSON snapshot địa chỉ nhận hàng
@@ -140,6 +142,7 @@ module.exports = {
                 order: {
                     user_id,
                     status: payload.status,
+                    payment_method: payload.payment_method ?? "cod",
                     subtotal,
                     discount_total: payload.discount_total,
                     shipping_fee: payload.shipping_fee,
@@ -155,7 +158,17 @@ module.exports = {
                     price_snapshot: it.price,
                 })),
             });
-
+            //  Nếu phương thức thanh toán là COD → tạo bản ghi payment
+            if (payload.payment_method === "cod") {
+                await PaymentService.createPaymentRecordSafe({
+                    order_id: order.id,
+                    method: "cod",
+                    status: "unpaid", // COD chưa thanh toán
+                    amount_paid: 0,
+                    currency: "VND",
+                    transaction_id: null,
+                });
+            }
             res.status(201).json({ success: true, data: order });
         } catch (e) {
             next(e);

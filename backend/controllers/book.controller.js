@@ -112,6 +112,23 @@ module.exports = {
             next(err);
         }
     },
+    
+    async getFlashSaleBooks(req, res, next) {
+        try {
+            const limit = Number(req.query.limit) || 10;
+            await BookService.expireFlashSales();
+            const rows = await BookService.findFlashSaleBooks(limit);
+            
+            return res.status(200).json({
+            success: true,
+            message: "Flash Sale (schema mới)",
+            data: rows, // gồm: id, title, image_url, price, sale_price, sale_start, sale_end, is_flash_sale
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+   
 };
 
 

@@ -25,20 +25,13 @@ const bookSchema = z
         language: z.string().optional().nullable(),
         format: z.enum(["paperback", "hardcover", "ebook"]).optional().or(z.string().min(1).optional()).optional(),
         price: z.coerce.number().nonnegative({ message: "price phải ≥ 0" }),
-        // sale_price có thể null/undefined hoặc số ≥ 0, và phải ≤ price nếu có
-        sale_price: z
-            .union([z.coerce.number().nonnegative(), z.null(), z.undefined()])
-            .optional(),
+        
         stock: z.coerce.number().int().nonnegative().default(0),
         description: z.string().optional().nullable(),
         image_url: optionalUrlOrEmpty,
         gallery_urls: z.array(optionalUrlOrEmpty).optional().default([]),
         category_ids: z.array(z.string().uuid("category_id phải là UUID")).optional().default([]),
     })
-    .refine((data) => data.sale_price == null || data.sale_price <= data.price, {
-        path: ["sale_price"],
-        message: "sale_price phải ≤ price",
-    });
 
 const listSchema = z.object({
     q: z.string().optional(),
@@ -48,6 +41,8 @@ const listSchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(12),
     sort: z.enum(["id_desc", "price_asc", "price_desc", "title_asc", "newest"]).optional(),
+    min: z.coerce.number().min(0).optional(),
+    max: z.coerce.number().min(0).optional(),
 });
 
 const paramsIdSchema = z.object({
@@ -113,21 +108,6 @@ module.exports = {
         }
     },
     
-    async getFlashSaleBooks(req, res, next) {
-        try {
-            const limit = Number(req.query.limit) || 10;
-            await BookService.expireFlashSales();
-            const rows = await BookService.findFlashSaleBooks(limit);
-            
-            return res.status(200).json({
-            success: true,
-            message: "Flash Sale (schema mới)",
-            data: rows, // gồm: id, title, image_url, price, sale_price, sale_start, sale_end, is_flash_sale
-            });
-        } catch (err) {
-            next(err);
-        }
-    }
    
 };
 

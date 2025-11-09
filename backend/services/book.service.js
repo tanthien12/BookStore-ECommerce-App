@@ -32,13 +32,7 @@ const BookService = {
     async list(params) {
         return BookModel.list(params);
     },
-    async findFlashSaleBooks(limit = 10) {
-        return BookModel.listFlashSale({ limit });
-    },
-    async expireFlashSales() {
-        return BookModel.expireFlashSales();
-  },
-
+   
 };
 
 module.exports = BookService;

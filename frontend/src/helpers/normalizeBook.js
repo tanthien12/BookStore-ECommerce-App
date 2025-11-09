@@ -22,6 +22,12 @@ function toUrlArray(value) {
 
 export default function normalizeBook(raw) {
   if (!raw) return null;
+  // Tính giá hiệu lực (ưu tiên giá sale)
+  const activeSale = raw.active_flashsale;
+  let effective_price = raw.price;
+  if (activeSale && activeSale.sale_price != null) {
+      effective_price = activeSale.sale_price;
+  }
 
   return {
     id: raw.id,
@@ -31,14 +37,13 @@ export default function normalizeBook(raw) {
     gallery_urls: toUrlArray(raw.gallery_urls), // mảng ảnh gallery
 
     price: raw.price != null ? Number(raw.price) : null,
-    sale_price: raw.sale_price != null ? Number(raw.sale_price) : null,
-    sale_start: raw.sale_start,
-    sale_end: raw.sale_end,
-    is_flash_sale: !!raw.is_flash_sale,
 
     stock: raw.stock ?? null,
+    sold_count: raw.sold_count ?? 0,
     rating_avg: raw.rating_avg != null ? Number(raw.rating_avg) : 0,
     rating_count: raw.rating_count != null ? Number(raw.rating_count) : 0,
+    active_flashsale: raw.active_flashsale ?? null, 
+    effective_price: effective_price != null ? Number(effective_price) : Number(raw.price),
   };
 }
 

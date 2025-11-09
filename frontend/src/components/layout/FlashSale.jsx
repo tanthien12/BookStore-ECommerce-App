@@ -1,4 +1,4 @@
-
+// src/pages/component/FlashSale.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import useFlashSaleBooks from "../../hooks/useFlashSaleBooks";
@@ -54,7 +54,8 @@ export default function FlashSale() {
   const nearestEnd = useMemo(() => {
     if (!books?.length) return null;
     const ends = books
-      .map((b) => (b.sale_end ? new Date(b.sale_end) : null))
+      // Đọc sale_end từ object lồng nhau
+      .map((b) => (b.active_flashsale?.sale_end ? new Date(b.active_flashsale.sale_end) : null))
       .filter((d) => d && !isNaN(d.getTime()))
       .sort((a, b) => a - b);
     return ends[0] || null;
@@ -131,6 +132,7 @@ export default function FlashSale() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {slide.map((b) => (
                     <div key={b.id} className="h-full">
+                      {/* ProductCard sẽ tự đọc book.active_flashsale */}
                       <ProductCard book={b} />
                     </div>
                   ))}

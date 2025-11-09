@@ -1,8 +1,11 @@
+// backend/services/payment.service.js
 const moment = require("moment");
 const crypto = require("crypto");
 const { env } = require("../config");
 const { pool } = require("../config/db.config");
 const OrderService = require("./order.service");
+// ⬇️ THÊM MỚI 1: IMPORT OrderModel ⬇️
+const OrderModel = require("../models/order.model");
 
 /* Bỏ rỗng + sort A→Z */
 function sortObject(obj) {
@@ -16,7 +19,7 @@ function sortObject(obj) {
   return ordered;
 }
 
-/* Chuẩn hoá IP cho dễ đọc log (không bắt buộc) */
+/* Chuẩn hoá IP */
 function normalizeIp(ip) {
   if (!ip) return "127.0.0.1";
   if (ip === "::1") return "127.0.0.1";
@@ -63,7 +66,7 @@ const PaymentService = {
     return rows[0];
   },
 
-  /* ===================== CREATE URL (theo ảnh) ===================== */
+  /* ===================== CREATE URL ===================== */
   async createVNPayUrlFromExistingOrder({ orderId, amount, bankCode = "", ipAddr = "127.0.0.1" }) {
     if (!env.VNP_TMN_CODE || !env.VNP_HASH_SECRET || !env.VNP_URL || !env.VNP_RETURN_URL) {
       throw new Error("VNPay env chưa cấu hình đủ");
@@ -71,8 +74,10 @@ const PaymentService = {
 
     const order = await OrderService.detail(orderId);
     if (!order) throw new Error("ORDER_NOT_FOUND");
+    // (Quan trọng) Chỉ cho phép thanh toán đơn 'pending'
+    if (order.status !== 'pending') throw new Error("ORDER_NOT_PENDING");
 
-    const needToPay = Number(amount || order.grand_total || order.total_price || 0);
+    const needToPay = Number(amount || order.grand_total || 0);
     if (!needToPay || needToPay <= 0) throw new Error("INVALID_AMOUNT");
 
     const vnpTxnRef =
@@ -86,12 +91,11 @@ const PaymentService = {
       status: "pending",
       amount_paid: needToPay,
       currency: "VND",
-      transaction_id: vnpTxnRef,
+      transaction_id: vnpTxnRef, // Lưu TxnRef để tìm lại
     });
 
     const createDate = moment().format("YYYYMMDDHHmmss");
 
-    // 1) Build params (raw), sort key
     let vnpParams = sortObject({
       vnp_Version: "2.1.0",
       vnp_Command: "pay",
@@ -108,35 +112,28 @@ const PaymentService = {
       ...(bankCode ? { vnp_BankCode: bankCode } : {}),
     });
 
-    // 2) Dùng URLSearchParams để encode, rồi ký trên phần query đã encode
     const redirectUrl = new URL(env.VNP_URL);
     Object.entries(vnpParams).forEach(([key, value]) => {
       redirectUrl.searchParams.append(key, String(value));
     });
 
-    // CHÚ Ý: không có vnp_SecureHash, vnp_SecureHashType trong query trước khi ký
     const hmac = crypto.createHmac("sha512", env.VNP_HASH_SECRET);
-    const signData = redirectUrl.search.slice(1); // bỏ dấu ? đầu
+    const signData = redirectUrl.search.slice(1); // bỏ dấu ?
     const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex").toUpperCase();
 
     redirectUrl.searchParams.append("vnp_SecureHash", signed);
     redirectUrl.searchParams.append("vnp_SecureHashType", "SHA512");
 
-    console.log("[VNPay][CREATE] QueryForSign:", signData);
-    console.log("[VNPay][CREATE] HashLocal:", signed);
-    console.log("[VNPay][CREATE] URL:", redirectUrl.toString());
-
     return redirectUrl.toString();
   },
 
-  /* ===================== RETURN (theo ảnh) ===================== */
+  /* ===================== RETURN (SỬA LỖI LOGIC) ===================== */
   async handleVNPayReturn(query) {
     const vnpParams = { ...query };
     const secureHashFromVNPay = String(vnpParams["vnp_SecureHash"] || "").toUpperCase();
     delete vnpParams["vnp_SecureHash"];
     delete vnpParams["vnp_SecureHashType"];
 
-    // sort + build lại query encode bằng URLSearchParams rồi ký y hệt cách create
     const sorted = sortObject(vnpParams);
     const tempUrl = new URL("http://dummy.local/");
     Object.entries(sorted).forEach(([k, v]) => tempUrl.searchParams.append(k, String(v)));
@@ -148,30 +145,79 @@ const PaymentService = {
       .digest("hex")
       .toUpperCase();
 
-    console.log("[VNPay][RETURN] QueryForSign:", signData);
-    console.log("[VNPay][RETURN] FromVNPay:", secureHashFromVNPay);
-    console.log("[VNPay][RETURN] Calculated:", calculatedHash);
-
     const vnpTxnRef = sorted["vnp_TxnRef"];
     const responseCode = sorted["vnp_ResponseCode"];
     const transactionNo = sorted["vnp_TransactionNo"] || null;
 
     // Tìm lại order_id từ bảng payment bằng vnp_TxnRef
     const { rows } = await pool.query(
-      `SELECT order_id FROM bookstore.payment WHERE transaction_id = $1 LIMIT 1;`,
+      `SELECT order_id FROM bookstore.payment WHERE transaction_id = $1 AND status = 'pending' LIMIT 1;`,
       [vnpTxnRef]
     );
     const orderId = rows[0]?.order_id || null;
 
-    if (secureHashFromVNPay === calculatedHash && responseCode === "00" && orderId) {
-      await PaymentService.updatePaymentStatusByOrder(orderId, "paid", transactionNo);
-      await OrderService.updateStatus(orderId, "paid");
-      return { ok: true, orderId, status: "paid" };
-    } else {
-      if (orderId) {
+    // (Check 1) Chữ ký không hợp lệ HOẶC không tìm thấy giao dịch 'pending'
+    if (secureHashFromVNPay !== calculatedHash || !orderId) {
+        if (orderId) {
+            await PaymentService.updatePaymentStatusByOrder(orderId, "failed");
+        }
+        return { ok: false, orderId, status: "failed", reason: "INVALID_SIGNATURE_OR_TX" };
+    }
+    
+    // (Check 2) Chữ ký hợp lệ, nhưng giao dịch VNPay thất bại
+    if (responseCode !== "00") {
         await PaymentService.updatePaymentStatusByOrder(orderId, "failed");
-      }
-      return { ok: false, orderId, status: "failed", reason: responseCode || "INVALID_SIGNATURE" };
+        return { ok: false, orderId, status: "failed", reason: responseCode };
+    }
+
+    // (Check 3) Thành công (responseCode === "00" VÀ Chữ ký hợp lệ)
+    // ⬇️ BẮT ĐẦU THÊM MỚI 2: LOGIC TRỪ KHO TRONG TRANSACTION ⬇️
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // 1. Lấy chi tiết đơn hàng (items)
+        const itemsRes = await client.query(
+            `SELECT book_id, quantity FROM bookstore.order_details WHERE order_id = $1`,
+            [orderId]
+        );
+        const items = itemsRes.rows;
+
+        if (!items || items.length === 0) {
+            throw new Error(`Không tìm thấy (items) cho đơn hàng ID: ${orderId}`);
+        }
+
+        // 2. Gọi logic trừ kho (từ OrderModel)
+        // (Nếu hàm này ném lỗi (vd: hết hàng), transaction sẽ ROLLBACK)
+        await OrderModel.updateStockAndSoldCounters(client, items);
+
+        // 3. Cập nhật trạng thái payment
+        await client.query(
+           `UPDATE bookstore.payment SET status = 'paid', transaction_id = $2, paid_at = NOW()
+            WHERE order_id = $1 AND status = 'pending'`,
+            [orderId, transactionNo]
+        );
+        
+        // 4. Cập nhật trạng thái order
+        await client.query(
+           `UPDATE "order" SET status = 'paid', updated_at = now() 
+            WHERE id = $1 AND status = 'pending'`,
+            [orderId]
+        );
+        
+        await client.query('COMMIT');
+        
+        return { ok: true, orderId, status: "paid" };
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error(`[StockDeduction] Lỗi khi trừ kho/cập nhật đơn hàng ${orderId}:`, err);
+        
+        // (Ghi nhận lỗi nhưng vẫn báo VNPay thất bại)
+        await PaymentService.updatePaymentStatusByOrder(orderId, "failed");
+        return { ok: false, orderId, status: "failed", reason: "STOCK_UPDATE_ERROR" };
+    } finally {
+        client.release();
     }
   },
 };

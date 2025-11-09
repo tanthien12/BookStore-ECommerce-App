@@ -1,3 +1,4 @@
+// frontend/src/pages/Checkout.jsx
 import React, { useMemo, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
@@ -76,7 +77,7 @@ export default function Checkout() {
     address_line2: "",
     note: "",
     shipping: "standard", // standard | express
-    payment: "cod", // cod | bank | qr
+    payment: "cod", // cod | vnpay
     need_invoice: false,
     tax_email: "",
   });
@@ -184,9 +185,11 @@ export default function Checkout() {
         country: "Việt Nam",
       };
 
+      // ⬇️ BẮT ĐẦU SỬA PAYLOAD ⬇️
+      // Gửi payment_method ở cấp cao nhất
       const payload = {
-        user_id: user?.id || null,
-        status: "pending",
+        user_id: user?.id || null, // (Backend sẽ ưu tiên req.user.id nếu có)
+        status: "pending", // Backend sẽ tự trừ kho nếu là 'cod'
         shipping_fee: shippingFee,
         discount_total: discount,
         shipping_method:
@@ -195,16 +198,13 @@ export default function Checkout() {
         items: checkoutItems.map((item) => ({
           book_id: item.productId,
           quantity: item.qty,
-          price: item.price,
+          price: item.price, // map sang price_snapshot
         })),
   
-        payment: {
-          method: form.payment,
-          status: form.payment === "cod" ? "unpaid" : "pending",
-          amount_paid: 0,
-          currency: "VND",
-          transaction_id: null,
-        },
+        payment_method: form.payment, // Gửi 'cod' hoặc 'vnpay'
+        
+        // (Xóa object 'payment' cũ)
+
         coupon:
           discount > 0
             ? {
@@ -215,10 +215,14 @@ export default function Checkout() {
         invoice:
           form.need_invoice === true ? { email: form.tax_email } : null,
       };
+      // ⬆️ KẾT THÚC SỬA PAYLOAD ⬆️
 
       const created = await orderApi.create(payload);
-            const orderId =
-        created?.data?.order_id || created?.data?.id || null;
+      const orderId = created?.data?.id || null; // Lấy ID đơn hàng từ kết quả
+
+      if (!orderId) {
+          throw new Error("Không nhận được ID đơn hàng sau khi tạo");
+      }
 
       // nếu chọn VNPay thì gọi backend để tạo link
       if (form.payment === "vnpay") {
@@ -227,25 +231,27 @@ export default function Checkout() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             order_id: orderId,
-            amount: total,
+            amount: total, // Gửi tổng tiền cuối cùng
             bankCode: "", 
           }),
         });
         const data = await res.json();
         if (data.success && data.paymentUrl) {
+          // Xóa giỏ hàng trước khi chuyển hướng
+          clearCart(); 
           window.location.href = data.paymentUrl;
           return;
         } else {
-          alert("Không tạo được link VNPay");
+          alert("Không tạo được link VNPay. Vui lòng thử lại.");
           return;
         }
       }
 
-
+      // Nếu là COD, chỉ cần chuyển trang
       localStorage.setItem(
         "order_draft",
         JSON.stringify({
-          orderId: created?.data?.order_id || created?.data?.id || null,
+          orderId: orderId,
           total,
           payment_method: form.payment,
           shipping_method: form.shipping,
@@ -272,6 +278,8 @@ export default function Checkout() {
     <div className="mx-auto max-w-6xl px-3 md:px-4 py-6 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-6">
       {/* LEFT */}
       <div className="space-y-4">
+        {/* ... (Phần JSX còn lại giữ nguyên: Tài khoản, Giao hàng, Vận chuyển, Thanh toán ...) ... */}
+        {/* ... (Toàn bộ JSX từ dòng 276 (section Tài khoản) đến 570 (button Đặt hàng) giữ nguyên) ... */}
         {/* 1. Tài khoản */}
         <section className="rounded-2xl border border-gray-200 bg-white">
           <div className="px-4 py-3 border-b font-semibold">Tài khoản</div>
@@ -556,21 +564,6 @@ export default function Checkout() {
                 <div className="font-medium">Thanh toán qua VNPay</div>
                 <div className="text-gray-500">
                   Chuyển hướng sang cổng VNPay để thanh toán online.
-                </div>
-              </div>
-            </label>
-
-            <label className="flex items-start gap-2 rounded-xl border p-3">
-              <input
-                type="radio"
-                name="pay"
-                checked={form.payment === "stripe"}
-                onChange={() => set("payment", "stripe")}
-              />
-              <div className="text-sm">
-                <div className="font-medium">Thanh toán bằng Stripe (thẻ)</div>
-                <div className="text-gray-500">
-                  Dùng thẻ Visa / Master / JCB.
                 </div>
               </div>
             </label>

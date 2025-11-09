@@ -3,10 +3,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import summaryApi from "../common/index.js";
 import ProductCard from "../components/layout/ProductCard.jsx";
+import useCategories from "../hooks/useCategories"; // ⬅️ THÊM MỚI 1: IMPORT HOOK
 
 /** ---------------- Config ---------------- */
 const SORTS = [
-  { key: "id_desc", label: "Độ liên quan" }, // tạm map "relevance" → id mới nhất
+  { key: "id_desc", label: "Độ liên quan" },
   { key: "newest", label: "Mới nhất" },
   { key: "price_asc", label: "Giá ↑" },
   { key: "price_desc", label: "Giá ↓" },
@@ -34,20 +35,24 @@ export default function SearchResult() {
   const q = (sp.get("q") || "").trim();
   const page = Math.max(1, Number(sp.get("page") || 1));
   const limit = Math.max(12, Number(sp.get("limit") || DEFAULT_LIMIT));
-  const category_id = sp.get("category_id") || ""; // id hoặc slug, tùy BE xử lý
+  const category_id = sp.get("category_id") || "";
   const min = sp.get("min") || "";
   const max = sp.get("max") || "";
   const inStock = truthy(sp.get("inStock") || "");
-  const sort = sp.get("sort") || "id_desc"; // ✔ nằm trong white-list ở trên
+  const sort = sp.get("sort") || "id_desc";
 
   // Data state
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
+  // (Chúng ta sẽ không dùng facets.categories nữa)
   const [facets, setFacets] = useState({ categories: [], priceRanges: DEFAULT_PRICE_RANGES });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  // Fetch
+  // ⬅️ THÊM MỚI 2: GỌI HOOK ĐỂ LẤY TẤT CẢ DANH MỤC ⬅️
+  const { categories: allCategories, loading: loadingCategories } = useCategories();
+
+  // Fetch sách (đã bao gồm lọc giá)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -55,7 +60,6 @@ export default function SearchResult() {
         setLoading(true);
         setErr("");
 
-        // endpoint list/search của bạn
         const listEndpoint = summaryApi.book?.list || summaryApi.book?.get;
         const url = new URL(summaryApi.url(listEndpoint));
 
@@ -63,10 +67,13 @@ export default function SearchResult() {
         url.searchParams.set("page", String(page));
         url.searchParams.set("limit", String(limit));
         if (category_id) url.searchParams.set("category_id", category_id);
+        
+        // (Đã hoạt động) Gửi min/max lên backend
         if (min) url.searchParams.set("min", numberOrEmpty(min));
-        if (max) url.searchParams.set("max", numberOrEmpty(max));
+        if (max) url.searchParams.set("max", numberOrEmpty(max)); 
+        
         if (inStock) url.searchParams.set("inStock", "1");
-        if (sort) url.searchParams.set("sort", sort); // ✔ hợp lệ với BE
+        if (sort) url.searchParams.set("sort", sort);
 
         const res = await fetch(url);
         const data = await res.json().catch(() => ({}));
@@ -79,21 +86,17 @@ export default function SearchResult() {
           throw new Error(msg);
         }
 
-        // Chuẩn hóa
         const payload = data?.data || data;
         const resultItems = payload?.items || [];
         const resultTotal = payload?.total ?? 0;
-        const resultFacets = payload?.facets || {};
+        
+        // (Backend không gửi facets, nên chúng ta không cần đọc nó nữa)
+        // const resultFacets = payload?.facets || {}; 
 
         if (alive) {
           setItems(Array.isArray(resultItems) ? resultItems : []);
           setTotal(Number(resultTotal) || 0);
-          setFacets({
-            categories: resultFacets.categories || [],
-            priceRanges: resultFacets.priceRanges?.length
-              ? resultFacets.priceRanges
-              : DEFAULT_PRICE_RANGES,
-          });
+          // (Không cần setFacets nữa, vì chúng ta đã gọi API riêng)
         }
       } catch (e) {
         if (alive) setErr(e.message || "Lỗi tìm kiếm");
@@ -118,7 +121,6 @@ export default function SearchResult() {
     Object.assign(next, obj);
     if (resetPage) next.page = 1;
 
-    // dọn rỗng
     Object.keys(next).forEach((k) => {
       if (next[k] === "" || next[k] === null || next[k] === "null") delete next[k];
     });
@@ -147,40 +149,46 @@ export default function SearchResult() {
                 <h3 className="text-base font-bold text-gray-800">LỌC THEO</h3>
               </div>
 
-              {/* Danh mục */}
+              {/* ⬅️ BẮT ĐẦU SỬA JSX DANH MỤC ⬅️ */}
               <div className="px-4 py-3 border-b">
                 <h4 className="mb-2 text-sm font-semibold text-gray-700">DANH MỤC CHÍNH</h4>
                 <div className="space-y-1 max-h-[280px] overflow-auto pr-1">
-                  {(facets.categories || []).map((c) => {
-                    const value = c.id || c.slug;
-                    const selected = String(category_id) === String(value);
-                    return (
-                      <label
-                        key={value}
-                        className={`flex items-center justify-between rounded-lg px-2 py-1.5 cursor-pointer ${selected ? "bg-red-50" : "hover:bg-gray-50"
-                          }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => patch({ category_id: selected ? "" : value })}
-                            className="h-4 w-4 text-red-600 rounded border-gray-300"
-                          />
-                          <span className={`text-sm ${selected ? "text-red-600 font-medium" : "text-gray-700"}`}>
-                            {c.name}
-                          </span>
-                        </div>
-                        {typeof c.count === "number" ? (
-                          <span className="text-xs text-gray-500">{c.count}</span>
-                        ) : null}
-                      </label>
-                    );
-                  })}
+                  
+                  {loadingCategories ? (
+                    <div className="text-sm text-gray-500">Đang tải...</div>
+                  ) : (
+                    (allCategories || []).map((c) => { // Dùng `allCategories`
+                      const value = c.id; // Backend lọc theo ID
+                      const selected = String(category_id) === String(value);
+                      return (
+                        <label
+                          key={value}
+                          className={`flex items-center justify-between rounded-lg px-2 py-1.5 cursor-pointer ${selected ? "bg-red-50" : "hover:bg-gray-50"
+                            }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => patch({ category_id: selected ? "" : value })}
+                              className="h-4 w-4 text-red-600 rounded border-gray-300"
+                            />
+                            <span className={`text-sm ${selected ? "text-red-600 font-medium" : "text-gray-700"}`}>
+                              {c.name}
+                            </span>
+                          </div>
+                          {/* (Chúng ta không có 'count' khi gọi API riêng) */}
+                        </label>
+                      );
+                    })
+                  )}
+
                 </div>
               </div>
+              {/* ⬆️ KẾT THÚC SỬA JSX DANH MỤC ⬆️ */}
 
-              {/* Giá */}
+
+              {/* Giá (Đã hoạt động) */}
               <div className="px-4 py-3 border-b">
                 <h4 className="mb-2 text-sm font-semibold text-gray-700">GIÁ</h4>
                 <div className="space-y-1">
@@ -233,6 +241,8 @@ export default function SearchResult() {
 
           {/* Main */}
           <main className="col-span-12 md:col-span-9">
+            {/* (Phần còn lại của file JSX giữ nguyên) */}
+            {/* ... */}
             <div className="rounded-2xl border border-gray-200 bg-white">
               <div className="px-4 pt-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">

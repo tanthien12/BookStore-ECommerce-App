@@ -1,104 +1,3 @@
-// const db = require("../config/db.config");
-
-// const OrderModel = {
-//     async create(order, items) {
-//         // order = { user_id, status, total_amount }
-//         // items = [{ book_id, quantity, price }]
-//         return db.tx(async t => {
-//             const o = await t.one(
-//                 `INSERT INTO orders(user_id, status, total_amount)
-//          VALUES($1,$2,$3) RETURNING *`,
-//                 [order.user_id, order.status, order.total_amount]
-//             );
-
-//             for (const it of items) {
-//                 await t.none(
-//                     `INSERT INTO order_items(order_id, book_id, quantity, price)
-//            VALUES($1,$2,$3,$4)`,
-//                     [o.id, it.book_id, it.quantity, it.price]
-//                 );
-//             }
-//             return o;
-//         });
-//     },
-
-//     async update(id, order, items) {
-//         return db.tx(async t => {
-//             const o = await t.oneOrNone(
-//                 `UPDATE orders
-//          SET status=$2, total_amount=$3, updated_at=NOW()
-//          WHERE id=$1 RETURNING *`,
-//                 [id, order.status, order.total_amount]
-//             );
-//             if (!o) return null;
-
-//             await t.none(`DELETE FROM order_items WHERE order_id=$1`, [id]);
-//             for (const it of items) {
-//                 await t.none(
-//                     `INSERT INTO order_items(order_id, book_id, quantity, price)
-//            VALUES($1,$2,$3,$4)`,
-//                     [id, it.book_id, it.quantity, it.price]
-//                 );
-//             }
-//             return o;
-//         });
-//     },
-
-//     async remove(id) {
-//         const res = await db.result(`DELETE FROM orders WHERE id=$1`, [id]);
-//         return res.rowCount > 0;
-//     },
-
-//     async findById(id) {
-//         const order = await db.oneOrNone(`SELECT * FROM orders WHERE id=$1`, [id]);
-//         if (!order) return null;
-//         const items = await db.manyOrNone(
-//             `SELECT oi.*, b.title
-//        FROM order_items oi
-//        JOIN books b ON b.id=oi.book_id
-//        WHERE order_id=$1`,
-//             [id]
-//         );
-//         return { ...order, items };
-//     },
-
-//     async list({ q, status, page = 1, limit = 10 }) {
-//         const offset = (page - 1) * limit;
-//         const where = [];
-//         const params = [];
-
-//         if (q) {
-//             params.push(`%${q}%`);
-//             where.push(`(CAST(o.id AS TEXT) ILIKE $${params.length})`);
-//         }
-//         if (status) {
-//             params.push(status);
-//             where.push(`o.status=$${params.length}`);
-//         }
-
-//         const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-//         const sql = `
-//       SELECT o.*, u.full_name as customer_name, u.email as customer_email
-//       FROM orders o
-//       JOIN users u ON u.id=o.user_id
-//       ${whereSql}
-//       ORDER BY o.created_at DESC
-//       LIMIT ${limit} OFFSET ${offset}
-//     `;
-
-//         const items = await db.manyOrNone(sql, params);
-//         const total = await db.one(
-//             `SELECT COUNT(*) as c FROM orders o
-//        ${whereSql}`,
-//             params
-//         );
-//         return { items, total: +total.c };
-//     },
-// };
-
-// module.exports = OrderModel;
-
-// code sau
 // backend/models/order.model.js
 const { pool } = require("../config/db.config");
 
@@ -117,10 +16,56 @@ function buildSet(fields) {
     return { sql: cols.join(", "), params: vals, nextIndex: i };
 }
 
+// ⬇️ BẮT ĐẦU HÀM TRỪ KHO (Giữ nguyên) ⬇️
+/**
+ * Trừ kho, tăng sold_count, tăng sold_quantity (nếu sale)
+ */
+async function updateStockAndSoldCounters(client, items) {
+    console.log("[StockUpdate] Bắt đầu trừ kho cho", items.length, "sản phẩm.");
+    
+    for (const item of items) {
+        const { book_id, quantity } = item;
+        if (!quantity || !book_id) continue;
+
+        // Lệnh 1: Cập nhật stock (với kiểm tra tồn kho) và sold_count
+        const updateBookQuery = `
+          UPDATE bookstore.book
+          SET 
+              stock = stock - $1,
+              sold_count = sold_count + $1
+          WHERE id = $2 AND stock >= $1; -- Quan trọng: Đảm bảo tồn kho đủ
+        `;
+        const result = await client.query(updateBookQuery, [quantity, book_id]);
+
+        if (result.rowCount === 0) {
+            throw new Error(`Không đủ hàng tồn kho (stock) cho sách ID: ${book_id}`);
+        }
+
+        // Lệnh 2: Cập nhật flash sale (nếu có)
+        const updateSaleQuery = `
+          UPDATE bookstore.flashsale_items fi
+          SET sold_quantity = sold_quantity + $1
+          WHERE 
+              fi.book_id = $2
+              AND fi.flashsale_id IN (
+                  SELECT id FROM bookstore.flashsale
+                  WHERE is_active = TRUE
+                  AND start_time <= NOW()
+                  AND end_time > NOW()
+              )
+              AND (fi.sale_quantity - fi.sold_quantity) >= $1; -- Quan trọng: Đảm bảo flash sale còn hàng
+        `;
+        await client.query(updateSaleQuery, [quantity, book_id]);
+    }
+    console.log("[StockUpdate] Trừ kho thành công.");
+}
+// ⬆️ KẾT THÚC HÀM TRỪ KHO ⬆️
+
+
 const OrderModel = {
     /**
      * Tạo order + order_details (transaction)
-     * order: { user_id, status, subtotal, discount_total, shipping_fee, grand_total, shipping_address?, placed_at? }
+     * order: { user_id, status, subtotal, ..., payment_method }
      * items: [{ book_id, quantity, price_snapshot }]
      */
     async create(order, items) {
@@ -128,6 +73,8 @@ const OrderModel = {
         try {
             await client.query("BEGIN");
 
+            // ⬇️ BẮT ĐẦU SỬA LỖI CÚ PHÁP SQL ⬇️
+            // (Xóa dấu phẩy (,) thừa sau 'placed_at')
             const insertOrderSql = `
             INSERT INTO "order" (
                 user_id,
@@ -140,27 +87,29 @@ const OrderModel = {
                 shipping_method,
                 placed_at
             )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8, COALESCE($9, now()))
-        RETURNING *;
-      `;
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8, COALESCE($9, now()))
+            RETURNING *;
+            `;
+            // ⬆️ KẾT THÚC SỬA LỖI CÚ PHÁP SQL ⬆️
+            
             const oRes = await client.query(insertOrderSql, [
                 order.user_id,
-                order.status, // must be lowercase per enum
+                order.status,
                 Number(order.subtotal) || 0,
                 Number(order.discount_total) || 0,
                 Number(order.shipping_fee) || 0,
                 Number(order.grand_total) || 0,
                 order.shipping_address || null,
                 order.shipping_method || null,
-                order.placed_at || null,
+                order.placed_at || null
             ]);
             const o = oRes.rows[0];
 
             // Insert details
             const insDetail = `
-        INSERT INTO order_details (order_id, book_id, quantity, price_snapshot)
-        VALUES ($1,$2,$3,$4);
-      `;
+            INSERT INTO order_details (order_id, book_id, quantity, price_snapshot)
+            VALUES ($1,$2,$3,$4);
+            `;
             for (const it of items) {
                 await client.query(insDetail, [
                     o.id,
@@ -169,6 +118,14 @@ const OrderModel = {
                     Number(it.price_snapshot) || 0,
                 ]);
             }
+
+            // ⬇️ LOGIC TRỪ KHO (Đã đúng) ⬇️
+            // Chỉ trừ kho nếu là COD.
+            if (order.payment_method === 'cod') {
+                // 'items' là mảng [{ book_id, quantity, price_snapshot }]
+                await updateStockAndSoldCounters(client, items);
+            }
+            // ⬆️ KẾT THÚC LOGIC TRỪ KHO ⬆️
 
             await client.query("COMMIT");
             return o;
@@ -182,8 +139,6 @@ const OrderModel = {
 
     /**
      * Cập nhật order; nếu items truyền vào -> thay toàn bộ chi tiết
-     * order: { status?, subtotal?, discount_total?, shipping_fee?, grand_total?, shipping_address? }
-     * items: optional [{ book_id, quantity, price_snapshot }]
      */
     async update(id, order, items) {
         const client = await pool.connect();
@@ -191,6 +146,7 @@ const OrderModel = {
             await client.query("BEGIN");
 
             if (order && Object.keys(order).length) {
+                // ⬇️ BẮT ĐẦU SỬA LỖI GÕ MÁY ⬇️
                 const { sql, params, nextIndex } = buildSet({
                     status: order.status,
                     subtotal: order.subtotal != null ? Number(order.subtotal) : undefined,
@@ -199,12 +155,13 @@ const OrderModel = {
                     shipping_fee:
                         order.shipping_fee != null ? Number(order.shipping_fee) : undefined,
                     shipping_method:
-                        order.shipping_method != null ? Number(order.shipping_) : undefined,
+                        order.shipping_method != null ? order.shipping_method : undefined, // Sửa shipping_ -> shipping_method
                     grand_total:
                         order.grand_total != null ? Number(order.grand_total) : undefined,
                     shipping_address: order.shipping_address,
                     updated_at: new Date(),
                 });
+                // ⬆️ KẾT THÚC SỬA LỖI GÕ MÁY ⬆️
 
                 if (sql) {
                     const updSql = `UPDATE "order" SET ${sql} WHERE id = $${nextIndex} RETURNING *;`;
@@ -219,9 +176,9 @@ const OrderModel = {
             if (Array.isArray(items)) {
                 await client.query(`DELETE FROM order_details WHERE order_id = $1`, [id]);
                 const insDetail = `
-          INSERT INTO order_details (order_id, book_id, quantity, price_snapshot)
-          VALUES ($1,$2,$3,$4);
-        `;
+                INSERT INTO order_details (order_id, book_id, quantity, price_snapshot)
+                VALUES ($1,$2,$3,$4);
+                `;
                 for (const it of items) {
                     await client.query(insDetail, [
                         id,
@@ -233,7 +190,6 @@ const OrderModel = {
             }
 
             await client.query("COMMIT");
-            // trả về bản ghi mới nhất
             const o = await this.findById(id);
             return o;
         } catch (e) {
@@ -243,16 +199,14 @@ const OrderModel = {
             client.release();
         }
     },
+    
+    // ... (Các hàm còn lại: remove, findById, list, listByUser, findMineById, cancelMine giữ nguyên) ...
 
     async remove(id) {
-        // ON DELETE CASCADE trong order_details đảm bảo chi tiết bị xoá theo
         const res = await pool.query(`DELETE FROM "order" WHERE id = $1`, [id]);
         return res.rowCount > 0;
     },
 
-    /**
-     * Chi tiết đơn (admin/nhân viên)
-     */
     async findById(id) {
         const oRes = await pool.query(
             `SELECT o.*
@@ -276,9 +230,6 @@ const OrderModel = {
         return { ...order, items: itemsRes.rows };
     },
 
-    /**
-     * Danh sách đơn (admin) với tìm kiếm/loc theo status, q (id…)
-     */
     async list({ q, status, page = 1, limit = 10 }) {
         page = Math.max(1, Number(page) || 1);
         limit = Math.min(100, Math.max(1, Number(limit) || 10));
@@ -321,9 +272,6 @@ const OrderModel = {
         return { items, total, page, limit, pages: Math.ceil(total / limit) };
     },
 
-    /**
-     * Danh sách đơn theo user (dùng cho /api/me/orders)
-     */
     async listByUser({ userId, page = 1, limit = 10, status }) {
         page = Math.max(1, Number(page) || 1);
         limit = Math.min(50, Math.max(1, Number(limit) || 10));
@@ -362,9 +310,6 @@ const OrderModel = {
         };
     },
 
-    /**
-     * Chi tiết đơn của chính mình (bảo vệ quyền sở hữu)
-     */
     async findMineById(userId, orderId) {
         const oRes = await pool.query(
             `SELECT o.id, o.status, o.subtotal, o.discount_total, o.shipping_fee,
@@ -389,10 +334,6 @@ const OrderModel = {
         return { order, items: dRes.rows };
     },
 
-    /**
-     * Hủy đơn của chính mình nếu trạng thái còn cho phép
-     * Cho phép: pending | processing
-     */
     async cancelMine(userId, orderId) {
         const sRes = await pool.query(
             `SELECT status FROM "order" WHERE id = $1 AND user_id = $2`,
@@ -415,6 +356,8 @@ const OrderModel = {
         );
         return { ok: true };
     },
+
+    updateStockAndSoldCounters, // Export hàm trừ kho
 };
 
 module.exports = OrderModel;

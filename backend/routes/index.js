@@ -9,6 +9,7 @@ const ReviewController = require("../controllers/review.controller");
 
 const authController = require("../controllers/auth.controller");
 const bookController = require("../controllers/book.controller");
+const FlashsaleController = require("../controllers/flashsale.controller");
 const categoryController = require("../controllers/category.controller");
 const orderController = require("../controllers/order.controller");
 const cartController = require("../controllers/cart.controller");
@@ -75,11 +76,20 @@ router.delete("/cart", requireAuth, cartController.clear);         // DELETE /ap
 
 // ========== BOOK ==========
 router.get("/books", bookController.list); // ?q=&page=&limit=&sort=newest
-router.get("/books/flash-sale", bookController.getFlashSaleBooks);
 router.get("/books/:id", bookController.detail);
 router.post("/books", bookController.create);
 router.put("/books/:id", bookController.update);
 router.delete("/books/:id", bookController.remove);
+
+// GET /api/flashsales/active
+router.get("/flashsales/active", FlashsaleController.getActiveFlashSale);
+// === Admin Routes ===
+router.post("/flashsales", FlashsaleController.createCampaign);
+router.get("/flashsales", FlashsaleController.listCampaigns);
+router.get("/flashsales/:id", FlashsaleController.getCampaignDetails);
+
+router.post("/flashsales/items", FlashsaleController.addItemToCampaign);
+router.delete("/flashsales/items/:id", FlashsaleController.removeItemFromCampaign);
 
 
 // ===== Admin: Users =====

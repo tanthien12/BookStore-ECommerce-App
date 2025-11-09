@@ -75,6 +75,7 @@
 // };
 
 // code sau
+// backend/controllers/order.controller.js
 const { z } = require("zod");
 const OrderService = require("../services/order.service");
 const PaymentService = require("../services/payment.service");
@@ -90,26 +91,23 @@ const StatusEnum = z.enum([
     "refunded",
 ]);
 
-// Schema khi tạo/cập nhật đơn (admin hoặc hệ thống)
-// - Nếu user là khách hàng đang đặt đơn: lấy user_id từ req.user.id (requireAuth)
-// - Nếu admin: có thể truyền user_id qua body.
 const itemSchema = z.object({
     book_id: z.string().uuid(),
     quantity: z.coerce.number().int().positive(),
-    price: z.coerce.number().nonnegative(), // sẽ map sang price_snapshot
+    price: z.coerce.number().nonnegative(), // FE gửi giá đã chốt (từ cart)
 });
 
 const baseOrderSchema = z.object({
     user_id: z.string().uuid().optional(),
     status: StatusEnum.default("pending"),
-    payment_method: z.enum(["cod", "vnpay", "stripe"]).optional(),
+    payment_method: z.enum(["cod", "vnpay", "stripe"]), // SỬA: Bắt buộc phải có
     shipping_fee: z.coerce.number().nonnegative().default(0),
     discount_total: z.coerce.number().nonnegative().default(0),
-    shipping_address: z.any().optional(), // JSON snapshot địa chỉ nhận hàng
+    shipping_address: z.any().optional(), 
     shipping_method: z.string().optional(),
     items: z.array(itemSchema).min(1, "Phải có ít nhất 1 sản phẩm"),
 });
-const createOrderSchema = baseOrderSchema.passthrough();
+const createOrderSchema = baseOrderSchema.passthrough(); // Cho phép các trường khác (coupon, invoice)
 
 const paramsIdSchema = z.object({ id: z.string().uuid() });
 
@@ -127,38 +125,41 @@ module.exports = {
     /** Admin/system tạo đơn hoặc user checkout (nếu bạn gắn vào luồng user) */
     async create(req, res, next) {
         try {
-            const payload = baseOrderSchema.parse(req.body);
+            const payload = createOrderSchema.parse(req.body);
 
             // Nếu có auth middleware, ưu tiên user_id từ token
             const authedUserId = req.user?.id;
-            const user_id = payload.user_id || authedUserId;
+            const user_id = authedUserId || payload.user_id; // Sửa: Lấy từ token trước
             if (!user_id) {
-                return res.status(400).json({ success: false, message: "Thiếu user_id" });
+                return res.status(401).json({ success: false, message: "Yêu cầu đăng nhập" });
             }
 
             const { subtotal, grand_total } = computeTotals(payload);
 
+            // ⬇️ BẮT ĐẦU SỬA LOGIC TRUYỀN DATA ⬇️
             const order = await OrderService.create({
                 order: {
                     user_id,
-                    status: payload.status,
-                    payment_method: payload.payment_method ?? "cod",
+                    status: payload.status, // Sẽ là 'pending'
+                    payment_method: payload.payment_method, // 'cod' hoặc 'vnpay'
                     subtotal,
                     discount_total: payload.discount_total,
                     shipping_fee: payload.shipping_fee,
                     grand_total,
                     shipping_address: payload.shipping_address || null,
                     shipping_method: payload.shipping_method || null,
-                    placed_at: new Date(), // theo schema
+                    placed_at: new Date(), 
                 },
                 // map price -> price_snapshot cho order_details
                 items: payload.items.map((it) => ({
                     book_id: it.book_id,
                     quantity: it.quantity,
-                    price_snapshot: it.price,
+                    price_snapshot: it.price, // Dùng giá 'price' từ payload.items
                 })),
             });
-            //  Nếu phương thức thanh toán là COD → tạo bản ghi payment
+            // ⬆️ KẾT THÚC SỬA LOGIC TRUYỀN DATA ⬆️
+            
+            //  Nếu phương thức thanh toán là COD → tạo bản ghi payment (unpaid)
             if (payload.payment_method === "cod") {
                 await PaymentService.createPaymentRecordSafe({
                     order_id: order.id,
@@ -169,6 +170,9 @@ module.exports = {
                     transaction_id: null,
                 });
             }
+            
+            // (Nếu là VNPay, FE sẽ gọi /create-payment-url ngay sau đây)
+            
             res.status(201).json({ success: true, data: order });
         } catch (e) {
             next(e);
@@ -176,16 +180,11 @@ module.exports = {
     },
 
     /** Admin cập nhật đơn (đổi trạng thái, đổi items, phí ship, giảm giá, tracking...) */
-    /** Admin cập nhật đơn (đổi trạng thái, đổi items, phí ship, giảm giá, tracking...) */
     async update(req, res, next) {
         try {
             const { id } = paramsIdSchema.parse(req.params);
             const payload = baseOrderSchema.partial().parse(req.body);
 
-            // Tính lại tổng tiền trong 3 trường hợp:
-            // 1) Có gửi items mới  → dùng items mới
-            // 2) Không gửi items nhưng có đổi shipping_fee/discount_total → lấy items hiện có rồi tính lại
-            // 3) Không đổi gì liên quan đến tiền → không tính lại
             let totals = {};
             let normalizedItems;
 
@@ -204,7 +203,7 @@ module.exports = {
                 totals = { subtotal, grand_total };
             } else if (payload.shipping_fee !== undefined || payload.discount_total !== undefined) {
                 // cần tính lại từ items hiện có
-                const current = await OrderService.detail(id); // { ... , items:[{price_snapshot, quantity}] }
+                const current = await OrderService.detail(id); 
                 if (!current) return res.status(404).json({ success: false, message: "Không tìm thấy" });
 
                 const itemsNow = (current.items || []).map(it => ({
@@ -278,8 +277,6 @@ module.exports = {
     },
 
     /** ========== API cho "Tài khoản của tôi" (khách hàng) ========== */
-
-    // GET /api/me/orders/:id  (chỉ xem đơn của chính mình)
     async detailMine(req, res, next) {
         try {
             const { id } = paramsIdSchema.parse(req.params);
@@ -292,7 +289,6 @@ module.exports = {
         }
     },
 
-    // POST /api/me/orders/:id/cancel (hủy nếu trạng thái cho phép)
     async cancelMine(req, res, next) {
         try {
             const { id } = paramsIdSchema.parse(req.params);

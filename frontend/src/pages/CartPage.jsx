@@ -105,7 +105,7 @@ export default function CartPage() {
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <input
               type="checkbox"
-              className="h-4 w-4"
+              className="h-5 w-5"
               checked={isAllSelected}
               onChange={selectAll}
             />
@@ -129,10 +129,10 @@ export default function CartPage() {
             return (
               <div
                 key={item.productId}
-                className="px-4 py-4 flex flex-col gap-4 md:flex-row md:items-start md:gap-4"
+                className="px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:gap-4"
               >
                 {/* LEFT: checkbox + image + info */}
-                <div className="flex flex-1 min-w-0 gap-3">
+                <div className="flex flex-1 min-w-0 gap-3 items-center">
                   <div className="flex-shrink-0 pt-1">
                     <input
                       type="checkbox"

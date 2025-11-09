@@ -14,7 +14,7 @@ const qs = (obj = {}) =>
     .filter(([, v]) => v !== undefined && v !== null && v !== "")
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
     .join("&");
-export const joinUrl = (path = "") => {
+export const joinUrl = (path = "") => { 
   const base = API_URL.replace(/\/+$/, "");
   const p = String(path).startsWith("/") ? path : `/${path}`;
   return `${base}${p}`;
@@ -73,6 +73,17 @@ const summaryApi = {
     create: "/categories",              // POST
     update: (id) => `/categories/${id}`,// PUT
     delete: (id) => `/categories/${id}`,// DELETE
+  },
+  // ====== Flashsale ======
+  flashsale: {
+    getActive: "/flashsales/active", // GET ?limit=...
+    
+    // (Admin)
+    list: "/flashsales",
+    create: "/flashsales",
+    detail: (id) => `/flashsales/${id}`,
+    addItem: "/flashsales/items",
+    removeItem: (id) => `/flashsales/items/${id}`,
   },
   // ====== Order ======
   order: {

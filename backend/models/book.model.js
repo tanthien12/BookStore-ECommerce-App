@@ -1,13 +1,58 @@
 // backend/models/book.model.js
+// backend/models/book.model.js
 const { pool } = require("../config/db.config");
+
+// Định nghĩa câu truy vấn JOIN flash sale
+const ACTIVE_FLASH_SALE_JOIN = `
+LEFT JOIN (
+    -- Bắt đầu subquery để xếp hạng
+    SELECT 
+        ranked_sales.book_id,
+        ranked_sales.active_flashsale
+    FROM (
+        -- Subquery bên trong: Lấy *tất cả* sale hợp lệ và đánh số
+        SELECT 
+            fi.book_id,
+            JSON_BUILD_OBJECT(
+                'item_id', fi.id,
+                'campaign_id', fs.id,
+                'sale_price', fi.sale_price,
+                'sale_quantity', fi.sale_quantity,
+                'sold_quantity', fi.sold_quantity,
+                'sale_end', fs.end_time
+            ) AS active_flashsale,
+            
+            -- Đánh số thứ tự (row_number) cho mỗi book_id,
+            -- ưu tiên giá sale rẻ nhất (price ASC)
+            ROW_NUMBER() OVER(
+                PARTITION BY fi.book_id 
+                ORDER BY fi.sale_price ASC
+            ) as rn
+            
+        FROM bookstore.flashsale_items fi
+        JOIN bookstore.flashsale fs ON fs.id = fi.flashsale_id
+        WHERE 
+            fs.is_active = TRUE
+            AND fs.start_time <= NOW()
+            AND fs.end_time > NOW()
+            AND fi.sold_quantity < fi.sale_quantity
+    ) AS ranked_sales
+    -- Subquery bên ngoài: Chỉ chọn sale có hạng 1 (rẻ nhất)
+    WHERE ranked_sales.rn = 1
+) AS sale ON sale.book_id = b.id
+`;
 
 function mapRow(row) {
     if (!row) return null;
+    const activeSale = row.active_flashsale;
+    let effective_price = row.price;
+    if (activeSale && activeSale.sale_price != null) {
+        effective_price = activeSale.sale_price;
+    }
     return {
         ...row,
         gallery_urls: row.gallery_urls || [],
-        // trả luôn giá hiệu lực nếu SELECT có alias
-        effective_price: row.effective_price ?? (row.sale_price ?? row.price),
+        effective_price: effective_price,
     };
 }
 
@@ -21,25 +66,19 @@ const toNumberOrNull = (v) => {
 const BookModel = {
     async create(payload) {
         const price = toNumberOrNull(payload.price) ?? 0;
-        const salePrice = toNumberOrNull(payload.sale_price);
-
-        // kiểm tra logic ở tầng model (ngoài DB constraint)
-        if (salePrice !== null && salePrice > price) {
-            throw new Error("sale_price phải nhỏ hơn hoặc bằng price");
-        }
-
+        
         const text = `
       INSERT INTO bookstore.book (
         title, author, isbn, publisher, published_year, language, format,
-        price, sale_price, stock, description, image_url, gallery_urls, created_at, updated_at
+        price, stock, description, image_url, gallery_urls, created_at, updated_at
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,
-        $8,$9,$10,$11,$12,$13,NOW(),NOW()
+        $8,$9,$10,$11,$12,NOW(),NOW()
       )
       RETURNING id, title, author, isbn, publisher, published_year, language, format,
-                price, sale_price, stock, description, image_url, gallery_urls, rating_avg, rating_count,
+                price, stock, sold_count, description, image_url, gallery_urls, rating_avg, rating_count,
                 created_at, updated_at,
-                COALESCE(sale_price, price) AS effective_price
+                price AS effective_price
     `;
         const values = [
             payload.title,
@@ -50,7 +89,6 @@ const BookModel = {
             payload.language ?? null,
             payload.format ?? null,
             price,
-            salePrice, // ⬅️ để NULL nếu không có
             payload.stock ?? 0,
             payload.description ?? null,
             payload.image_url ?? null,
@@ -62,12 +100,6 @@ const BookModel = {
 
     async update(id, payload) {
         const price = toNumberOrNull(payload.price);
-        const salePrice = toNumberOrNull(payload.sale_price);
-
-        if (price !== null && salePrice !== null && salePrice > price) {
-            throw new Error("sale_price phải nhỏ hơn hoặc bằng price");
-        }
-
         const text = `
       UPDATE bookstore.book
       SET
@@ -79,17 +111,16 @@ const BookModel = {
         language = COALESCE($7, language),
         format = COALESCE($8, format),
         price = COALESCE($9, price),
-        sale_price = $10,
-        stock = COALESCE($11, stock),
-        description = COALESCE($12, description),
-        image_url = COALESCE($13, image_url),
-        gallery_urls = COALESCE($14, gallery_urls),
+        stock = COALESCE($10, stock),
+        description = COALESCE($11, description),
+        image_url = COALESCE($12, image_url),
+        gallery_urls = COALESCE($13, gallery_urls),
         updated_at = NOW()
       WHERE id = $1
       RETURNING id, title, author, isbn, publisher, published_year, language, format,
-                price, sale_price, stock, description, image_url, gallery_urls, rating_avg, rating_count,
+                price, stock, sold_count, description, image_url, gallery_urls, rating_avg, rating_count,
                 created_at, updated_at,
-                COALESCE(sale_price, price) AS effective_price
+               price AS effective_price
     `;
         const values = [
             id,
@@ -100,8 +131,7 @@ const BookModel = {
             payload.published_year ?? null,
             payload.language ?? null,
             payload.format ?? null,
-            price,        // có thể null -> giữ nguyên
-            salePrice,    // null -> bỏ khuyến mãi
+            price,
             payload.stock ?? null,
             payload.description ?? null,
             payload.image_url ?? null,
@@ -119,11 +149,14 @@ const BookModel = {
 
     async findById(id) {
         const bookSql = `
-      SELECT id, title, author, isbn, publisher, published_year, language, format,
-             price, sale_price, sale_start, sale_end, is_flash_sale, stock, sold_count, description, image_url, gallery_urls, rating_avg, rating_count,
-             created_at, updated_at
-      FROM bookstore.book
-      WHERE id = $1
+      SELECT 
+        b.id, b.title, b.author, b.isbn, b.publisher, b.published_year, b.language, b.format,
+        b.price, b.stock, b.sold_count, b.description, b.image_url, b.gallery_urls, 
+        b.rating_avg, b.rating_count, b.created_at, b.updated_at,
+        sale.active_flashsale
+      FROM bookstore.book b
+      ${ACTIVE_FLASH_SALE_JOIN}
+      WHERE b.id = $1
     `;
         const catSql = `
       SELECT c.id, c.name, c.slug
@@ -137,62 +170,85 @@ const BookModel = {
         return { ...book, categories: cats.rows };
     },
 
-    async list({ q, category_id, language, format, page = 1, limit = 12, sort = "id_desc" }) {
+    // ⬇️ BẮT ĐẦU SỬA HÀM LIST ⬇️
+    async list({ q, category_id, language, format, page = 1, limit = 12, sort = "id_desc", min, max }) {
         const offset = (page - 1) * limit;
         const values = [];
         const where = [];
         let joins = "";
+        let i = 1; // Biến đếm an toàn cho parameters
 
         if (q) {
             values.push(`%${q}%`);
-            const p = `$${values.length}`;
-            // tái sử dụng cùng placeholder cho nhiều cột
+            const p = `$${i++}`;
             where.push(`(b.title ILIKE ${p} OR b.author ILIKE ${p} OR b.isbn ILIKE ${p} OR b.publisher ILIKE ${p})`);
         }
         if (category_id) {
             joins += " JOIN bookstore.books_categories bc ON bc.book_id = b.id ";
             values.push(category_id);
-            where.push(`bc.category_id = $${values.length}`);
+            where.push(`bc.category_id = $${i++}`);
         }
         if (language) {
             values.push(language);
-            where.push(`b.language = $${values.length}`);
+            where.push(`b.language = $${i++}`);
         }
         if (format) {
             values.push(format);
-            where.push(`b.format = $${values.length}`);
+            where.push(`b.format = $${i++}`);
         }
-
+        
+        // Định nghĩa giá hiệu lực (effective price)
+        const effectivePriceSql = "COALESCE((sale.active_flashsale->>'sale_price')::numeric, b.price)";
+        
+        // Thêm logic lọc giá
+        if (min != null) {
+            values.push(min);
+            where.push(`${effectivePriceSql} >= $${i++}`);
+        }
+        if (max != null) {
+            values.push(max);
+            where.push(`${effectivePriceSql} <= $${i++}`);
+        }
+        
         const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-        // sort theo giá hiệu lực khi chọn price_asc/price_desc
+        // Sửa logic sort để dùng giá hiệu lực (effective price)
         let orderBy = "b.id DESC";
-        if (sort === "price_asc") orderBy = "COALESCE(b.sale_price, b.price) ASC";
-        if (sort === "price_desc") orderBy = "COALESCE(b.sale_price, b.price) DESC";
+        if (sort === "price_asc") orderBy = `${effectivePriceSql} ASC`;
+        if (sort === "price_desc") orderBy = `${effectivePriceSql} DESC`;
         if (sort === "title_asc") orderBy = "b.title ASC";
         if (sort === "newest") orderBy = "b.created_at DESC";
 
         const listSql = `
-      SELECT b.id, b.title, b.author, b.isbn, b.publisher, b.published_year,
-             b.language, b.format, b.price, b.sale_price, b.sale_start, b.sale_end, b.is_flash_sale, b.stock, b.sold_count, b.image_url, b.gallery_urls,
-             b.rating_avg, b.rating_count, b.created_at, b.updated_at
+      SELECT 
+            b.id, b.title, b.author, b.isbn, b.publisher, b.published_year,
+            b.language, b.format, b.price, b.stock, b.sold_count, b.image_url, b.gallery_urls,
+            b.rating_avg, b.rating_count, b.created_at, b.updated_at,
+            sale.active_flashsale -- Thêm trường sale
       FROM bookstore.book b
       ${joins}
+      ${ACTIVE_FLASH_SALE_JOIN} -- Thêm JOIN logic sale
       ${whereSql}
       ORDER BY ${orderBy}
-      LIMIT ${limit} OFFSET ${offset}
+      LIMIT $${i++} OFFSET $${i++}
     `;
         const countSql = `
       SELECT COUNT(DISTINCT b.id) AS count
       FROM bookstore.book b
       ${joins}
+      ${ACTIVE_FLASH_SALE_JOIN} -- Thêm JOIN logic sale
       ${whereSql}
     `;
 
-        const [list, count] = await Promise.all([pool.query(listSql, values), pool.query(countSql, values)]);
-        const items = list.rows.map(mapRow);
+        const [list, count] = await Promise.all([
+            pool.query(listSql, [...values, limit, offset]), 
+            pool.query(countSql, values)
+        ]);
+        
+        const items = list.rows.map(mapRow); // mapRow sẽ tính 'effective_price'
         return { items, total: +count.rows[0].count };
     },
+    // ⬆️ KẾT THÚC SỬA HÀM LIST ⬆️
 
     async setCategories(book_id, category_ids = []) {
         const client = await pool.connect();
@@ -215,51 +271,10 @@ const BookModel = {
             client.release();
         }
     },
-
-    async listFlashSale({ limit = 10 } = {}) {
-        const sql = `
-            SELECT
-            id,
-            title,
-            image_url,
-            price,          -- giá gốc
-            sale_price,     -- giá đang sale
-            sale_start,
-            sale_end,
-            is_flash_sale
-            FROM bookstore.book
-            WHERE is_flash_sale = TRUE
-            AND sale_price IS NOT NULL
-            AND (sale_start IS NULL OR sale_start <= NOW())
-            AND (sale_end   IS NOT NULL AND NOW() < sale_end)
-            ORDER BY sale_end ASC
-            LIMIT $1;
-        `;
-        const { rows } = await pool.query(sql, [limit]);
-        return rows;
-    },
-    async expireFlashSales() {
-        const sql = `
-            UPDATE bookstore.book
-            SET
-            is_flash_sale = FALSE,
-            sale_price = NULL,
-            sale_start = NULL,
-            sale_end = NULL,
-            updated_at = NOW()
-            WHERE is_flash_sale = TRUE
-            AND sale_end IS NOT NULL
-            AND NOW() >= sale_end
-            RETURNING id;
-        `;
-        const { rows } = await pool.query(sql);
-        return rows; // trả về danh sách id đã expire (nếu cần)
-    }
-
-    
 };
 
 module.exports = BookModel;
+
 
 
 //cod goc

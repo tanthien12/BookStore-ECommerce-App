@@ -13,22 +13,35 @@ export default function ProductCard({ book, product, topBadgeText }) {
   const imageUrl =
     src.image_url || src.imageUrl || "https://via.placeholder.com/220x300?text=Book";
 
-  // Giá: mapping theo backend (price, sale_price)
+  // --- Logic giá mới ---
+  const activeSale = src.active_flashsale; // (null hoặc object)
   const basePrice = src.price ?? null;
-  const salePrice = src.sale_price ?? src.salePrice ?? null;
+  
   const hasSale =
+    activeSale &&
+    activeSale.sale_price != null &&
     basePrice != null &&
-    salePrice != null &&
-    Number(salePrice) > 0 &&
-    Number(salePrice) < Number(basePrice);
-  const discountPercent = hasSale
-    ? Math.max(0, Math.round((1 - Number(salePrice) / Number(basePrice)) * 100))
-    : 0;
+    Number(activeSale.sale_price) < Number(basePrice);
 
-  // Rating + sold (nếu API có)
-  const ratingAvg = Number(src.rating_avg ?? src.ratingAvg ?? 0);
-  const ratingCount = Number(src.rating_count ?? src.ratingCount ?? 0);
-  const soldCount = Number(src.sold_count ?? src.soldCount ?? 0);
+  const displayPrice = hasSale ? Number(activeSale.sale_price) : Number(basePrice);
+  const oldPrice = hasSale ? Number(basePrice) : null;
+
+  const discountPercent = hasSale
+    ? Math.max(0, Math.round((1 - Number(displayPrice) / Number(basePrice)) * 100))
+    : 0;
+  // --- Hết logic giá ---
+
+  // Rating + sold
+  const ratingAvg = Number(src.rating_avg ?? 0);
+  const ratingCount = Number(src.rating_count ?? 0);
+  
+  // Ưu tiên hiển thị số lượng bán của flash sale
+  const soldCount = activeSale 
+      ? (activeSale.sold_quantity ?? 0) 
+      : (src.sold_count ?? 0); // Nếu không sale, dùng tổng sold_count
+      
+  const soldText = activeSale ? `🔥 Đã bán ${soldCount}` : (soldCount > 0 ? `Đã bán ${soldCount}` : null);
+
 
   return (
     <div className="w-full overflow-hidden rounded-lg border border-transparent bg-white shadow-sm transition hover:border-red-200 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
@@ -72,11 +85,11 @@ export default function ProductCard({ book, product, topBadgeText }) {
           <div className="mt-2 flex items-end gap-2">
             <div className="flex flex-col">
               <span className={`text-base font-semibold ${hasSale ? "text-red-600" : "text-neutral-900"}`}>
-                {money(hasSale ? salePrice : basePrice)}
+                {money(displayPrice)}
               </span>
               {hasSale && (
                 <span className="text-xs text-neutral-500 line-through">
-                  {money(basePrice)}
+                  {money(oldPrice)}
                 </span>
               )}
             </div>
@@ -110,7 +123,7 @@ export default function ProductCard({ book, product, topBadgeText }) {
                   {ratingCount > 0 && <span>({ratingCount})</span>}
                 </span>
               )}
-              {soldCount > 0 && <span className="whitespace-nowrap">Đã bán {soldCount}</span>}
+              {soldText && <span className="whitespace-nowrap">{soldText}</span>}
             </div>
           )}
         </div>
@@ -118,118 +131,3 @@ export default function ProductCard({ book, product, topBadgeText }) {
     </div>
   );
 }
-
-
-// import React from "react";
-// import { Link } from "react-router-dom";
-
-// function formatCurrency(v) {
-//   if (v == null) return "";
-//   // v có thể là string từ BE
-//   const num = typeof v === "string" ? Number(v) : v;
-//   if (Number.isNaN(num)) return "";
-//   return num.toLocaleString("vi-VN") + " ₫";
-// }
-
-// export default function ProductCard({ product, book }) {
-//   // chấp nhận cả product lẫn book
-//   const src = product || book || {};
-
-//   const id =
-//     src.id ||
-//     src.book_id ||
-//     src.slug ||
-//     src._id ||
-//     ""; // để dùng cho link
-
-//   const title = src.title || src.name || "Sản phẩm";
-
-//   const imageUrl =
-//     src.imageUrl ||
-//     src.image_url ||
-//     src.img ||
-//     src.thumbnail ||
-//     "https://via.placeholder.com/200x200?text=Book";
-
-//   // giá hiện tại
-//   const price =
-//     src.discount_price ??
-//     src.sale_price ??
-//     src.price ??
-//     src.final_price ??
-//     null;
-
-//   // giá gốc
-//   const oldPrice =
-//     src.price && src.discount_price && src.discount_price < src.price
-//       ? src.price
-//       : src.oldPrice || src.original_price || null;
-
-//   // tính % giảm
-//   let discountPercent = src.discount_percent;
-//   if (!discountPercent && oldPrice && price && oldPrice > price) {
-//     discountPercent = Math.round(((oldPrice - price) / oldPrice) * 100);
-//   }
-
-//   const sold =
-//     src.sold_count ||
-//     src.sold ||
-//     src.total_sold ||
-//     src.order_count ||
-//     null;
-
-//   return (
-//     <div className="w-full bg-white rounded-lg border border-transparent hover:border-red-200 hover:shadow-[0_8px_24px_rgba(0,0,0,0.04)] transition overflow-hidden">
-//       <Link to={`/product/${id}`} className="block">
-//         {/* Ảnh */}
-//         <div className="relative w-full pt-[130%] bg-gray-50 overflow-hidden">
-//           <img
-//             src={imageUrl}
-//             alt={title}
-//             className="absolute inset-0 w-full h-full object-contain p-2"
-//             loading="lazy"
-//           />
-
-//           {/* badge giảm giá */}
-//           {discountPercent ? (
-//             <span className="absolute top-2 left-2 bg-red-500 text-white text-[11px] font-semibold px-2 py-1 rounded-md">
-//               -{discountPercent}%
-//             </span>
-//           ) : null}
-//         </div>
-
-//         {/* Nội dung */}
-//         <div className="p-3 flex flex-col gap-2">
-//           {/* title */}
-//           <h3 className="text-sm text-gray-800 leading-snug line-clamp-2 min-h-[2.6rem]">
-//             {title}
-//           </h3>
-
-//           {/* giá */}
-//           <div className="flex flex-wrap items-center gap-2">
-//             {price != null ? (
-//               <span className="text-red-600 font-semibold text-sm">
-//                 {formatCurrency(price)}
-//               </span>
-//             ) : (
-//               <span className="text-gray-400 text-sm">Liên hệ</span>
-//             )}
-
-//             {oldPrice != null && oldPrice !== price ? (
-//               <span className="text-gray-400 line-through text-xs">
-//                 {formatCurrency(oldPrice)}
-//               </span>
-//             ) : null}
-//           </div>
-
-//           {/* đã bán */}
-//           {sold != null ? (
-//             <p className="text-[11px] text-gray-400">
-//               Đã bán {sold}
-//             </p>
-//           ) : null}
-//         </div>
-//       </Link>
-//     </div>
-//   );
-// }

@@ -9,7 +9,7 @@ const ReviewController = require("../controllers/review.controller");
 
 const authController = require("../controllers/auth.controller");
 const bookController = require("../controllers/book.controller");
-const FlashsaleController = require("../controllers/flashsale.controller");
+const flashsaleController = require("../controllers/flashsale.controller");
 const categoryController = require("../controllers/category.controller");
 const orderController = require("../controllers/order.controller");
 const cartController = require("../controllers/cart.controller");
@@ -82,14 +82,16 @@ router.put("/books/:id", bookController.update);
 router.delete("/books/:id", bookController.remove);
 
 // GET /api/flashsales/active
-router.get("/flashsales/active", FlashsaleController.getActiveFlashSale);
+router.get("/flashsales/active", flashsaleController.getActiveFlashSale);
 // === Admin Routes ===
-router.post("/flashsales", FlashsaleController.createCampaign);
-router.get("/flashsales", FlashsaleController.listCampaigns);
-router.get("/flashsales/:id", FlashsaleController.getCampaignDetails);
+router.post("/flashsales", flashsaleController.createCampaign);
+router.get("/flashsales", flashsaleController.listCampaigns);
+router.get("/flashsales/:id", flashsaleController.getCampaignDetails);
+router.put("/flashsales/:id", flashsaleController.updateCampaign);
+router.delete("/flashsales/:id", flashsaleController.deleteCampaign);
 
-router.post("/flashsales/items", FlashsaleController.addItemToCampaign);
-router.delete("/flashsales/items/:id", FlashsaleController.removeItemFromCampaign);
+router.post("/flashsales/items", flashsaleController.addItemToCampaign);
+router.delete("/flashsales/items/:id", flashsaleController.removeItemFromCampaign);
 
 
 // ===== Admin: Users =====

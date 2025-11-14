@@ -82,6 +82,8 @@ const summaryApi = {
     list: "/flashsales",
     create: "/flashsales",
     detail: (id) => `/flashsales/${id}`,
+    update: (id) => `/flashsales/${id}`, // PUT (Admin update campaign)
+    delete: (id) => `/flashsales/${id}`, // DELETE (Admin delete campaign)
     addItem: "/flashsales/items",
     removeItem: (id) => `/flashsales/items/${id}`,
   },

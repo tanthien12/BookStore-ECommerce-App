@@ -9,6 +9,18 @@ const FlashsaleService = {
         return FlashsaleModel.createCampaign(payload);
     },
 
+   // ⬇️ THÊM HÀM MỚI ⬇️
+    async updateCampaign(id, payload) {
+        if (new Date(payload.end_time) <= new Date(payload.start_time)) {
+            throw new Error("Thời gian kết thúc phải sau thời gian bắt đầu");
+        }
+        return FlashsaleModel.update(id, payload);
+    },
+    
+    // ⬇️ THÊM HÀM MỚI ⬇️
+    async deleteCampaign(id) {
+        return FlashsaleModel.remove(id);
+    },
     async listCampaigns(params) {
         return FlashsaleModel.listCampaigns(params);
     },

@@ -13,7 +13,28 @@ const FlashsaleModel = {
         const { rows } = await pool.query(sql, [name, start_time, end_time, is_active ?? true]);
         return rows[0];
     },
+    // ⬇️ THÊM HÀM MỚI ⬇️
+    async update(id, payload) {
+        const { name, start_time, end_time, is_active } = payload;
+        const { rows } = await pool.query(
+            `UPDATE bookstore.flashsale
+             SET name = $1, start_time = $2, end_time = $3, is_active = $4, updated_at = NOW()
+             WHERE id = $5 RETURNING *`,
+            [name, start_time, end_time, is_active, id]
+        );
+        return rows[0];
+    },
 
+    // ⬇️ THÊM HÀM MỚI ⬇️
+    async remove(id) {
+        // (items sẽ tự động bị xóa nhờ "ON DELETE CASCADE" trong CSDL)
+        const { rowCount } = await pool.query(
+            `DELETE FROM bookstore.flashsale WHERE id = $1`,
+            [id]
+        );
+        return rowCount > 0;
+    },
+    
     async listCampaigns(params = {}) {
         const sql = `SELECT * FROM bookstore.flashsale ORDER BY start_time DESC`;
         const { rows } = await pool.query(sql);

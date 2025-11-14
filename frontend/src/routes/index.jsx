@@ -25,6 +25,10 @@ import EditUser from '../pages/admin/EditUser.jsx';
 import ProductDetail from '../pages/ProductDetail.jsx';
 import CartPage from '../pages/CartPage.jsx';
 import CategoryPage from '../pages/CategoryPage.jsx';
+//add flashsale
+import FlashsaleList from '../pages/admin/FlashsaleList.jsx';
+import AddFlashsale from '../pages/admin/AddFlashsale.jsx';
+import EditFlashsale from '../pages/admin/EditFlashsale.jsx';
 // import { patch } from '../../../backend/routes/index.js';
 import AccountLayout from '../pages/user/AccountLayout.jsx';
 import Profile from '../pages/user/Profile.jsx';
@@ -137,6 +141,10 @@ const router = createBrowserRouter([
                     { path: "users", element: <UserList /> }, // /admin/users
                     { path: "users-add", element: <AddUser /> }, // /admin/users-add
                     { path: "users-edit/:id", element: <EditUser /> }, // /admin/users-edit/:id
+                    
+                    { path: "flashsales", element: <FlashsaleList /> },
+                    { path: "flashsales-add", element: <AddFlashsale /> },
+                    { path: "flashsales-edit/:id", element: <EditFlashsale /> },
 
                     // { path: "users", element: <UserList /> }, // /admin/users
                 ],

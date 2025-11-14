@@ -89,5 +89,28 @@ module.exports = {
         } catch (err) {
             next(err);
         }
+    },
+    // ⬇️ THÊM HÀM MỚI ⬇️
+    async updateCampaign(req, res, next) {
+        try {
+            const { id } = paramsIdSchema.parse(req.params);
+            const payload = createCampaignSchema.parse(req.body); // Dùng chung schema
+            const data = await FlashsaleService.updateCampaign(id, payload);
+            res.status(200).json({ success: true, data });
+        } catch (err) {
+            next(err);
+        }
+    },
+
+    // ⬇️ THÊM HÀM MỚI ⬇️
+    async deleteCampaign(req, res, next) {
+        try {
+            const { id } = paramsIdSchema.parse(req.params);
+            const ok = await FlashsaleService.deleteCampaign(id);
+            if (!ok) return res.status(404).json({ success: false, message: "Không tìm thấy" });
+            res.json({ success: true, message: "Đã xóa chiến dịch" });
+        } catch (err) {
+            next(err);
+        }
     }
 };

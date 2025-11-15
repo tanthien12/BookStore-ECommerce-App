@@ -11,7 +11,12 @@ function authGuard(req, res, next) {
     }
     try {
         const payload = jwt.verify(token, env.JWT_ACCESS_SECRET);
-        req.user = { id: payload.sub, email: payload.email };
+        // req.user = { id: payload.sub, email: payload.email };
+        req.user = {
+            id: payload.sub,
+            email: payload.email,
+            role: payload.role || payload.role_slug || null,
+        };
         return next();
     } catch (err) {
         return res.status(401).json({ message: "Token không hợp lệ hoặc đã hết hạn", error: true, success: false });

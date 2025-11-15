@@ -18,6 +18,7 @@ const cartController = require("../controllers/cart.controller");
 const { authGuard: requireAuth, requireRole } = require("../middlewares/auth.middleware");
 const adminUserCtrl = require("../controllers/admin.user.controller");
 const adminRoleCtrl = require("../controllers/admin.role.controller");
+const adminDashboardCtrl = require("../controllers/admin.dashboard.controller");
 const AccountController = require("../controllers/account.controller");
 const AddressController = require("../controllers/address.controller");
 const WishlistController = require("../controllers/wishlist.controller");
@@ -101,6 +102,14 @@ router.delete("/flashsales/items/:id", flashsaleController.removeItemFromCampaig
 // router.put('/admin/users/:id', requireAuth, requireRole('admin'), adminUserCtrl.update);
 // router.post('/admin/users/:id/reset-password', requireAuth, requireRole('admin'), adminUserCtrl.resetPassword);
 // router.post('/admin/users/bulk', requireAuth, requireRole('admin'), adminUserCtrl.bulk);
+// router.get('/admin/dashboard', adminDashboardCtrl.overview);
+
+router.get('/admin/dashboard', requireAuth, requireRole('admin'), adminDashboardCtrl.overview);
+router.get('/admin/dashboard/products', requireAuth, requireRole('admin'), adminDashboardCtrl.products);
+router.get('/admin/dashboard/customers', requireAuth, requireRole('admin'), adminDashboardCtrl.customers);
+router.get('/admin/dashboard/campaigns', adminDashboardCtrl.campaigns);
+
+
 router.get('/admin/users', adminUserCtrl.list);
 router.get('/admin/users/:id', adminUserCtrl.getOne);
 router.post('/admin/users', adminUserCtrl.create);
@@ -170,9 +179,9 @@ router.get("/chat/stream", sseHeaders, sseLimiter, chatCtl.stream);
 module.exports = router;
 
 //Province, District, Ward
-router.get("/provinces", AddressController.provinces);          
-router.get("/districts", AddressController.districts);          
-router.get("/wards", AddressController.wards); 
+router.get("/provinces", AddressController.provinces);
+router.get("/districts", AddressController.districts);
+router.get("/wards", AddressController.wards);
 
 // ========== REVIEWS ==========
 // public

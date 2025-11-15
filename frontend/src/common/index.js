@@ -14,7 +14,7 @@ const qs = (obj = {}) =>
     .filter(([, v]) => v !== undefined && v !== null && v !== "")
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
     .join("&");
-export const joinUrl = (path = "") => { 
+export const joinUrl = (path = "") => {
   const base = API_URL.replace(/\/+$/, "");
   const p = String(path).startsWith("/") ? path : `/${path}`;
   return `${base}${p}`;
@@ -77,7 +77,7 @@ const summaryApi = {
   // ====== Flashsale ======
   flashsale: {
     getActive: "/flashsales/active", // GET ?limit=...
-    
+
     // (Admin)
     list: "/flashsales",
     create: "/flashsales",
@@ -97,14 +97,14 @@ const summaryApi = {
   },
 
   // ====== Cart ======
-  
-cart: {
-  list: "/cart",                 // GET
-  add: "/cart",                  // POST
-  update: (id) => `/cart/${id}`, // PUT
-  remove: (id) => `/cart/${id}`, // DELETE
-  clear: "/cart",                // DELETE all
-},
+
+  cart: {
+    list: "/cart",                 // GET
+    add: "/cart",                  // POST
+    update: (id) => `/cart/${id}`, // PUT
+    remove: (id) => `/cart/${id}`, // DELETE
+    clear: "/cart",                // DELETE all
+  },
 
   // ====== Admin: Users ======
   user: {
@@ -114,6 +114,13 @@ cart: {
     update: (id) => `/admin/users/${id}`, // PUT/PATCH {name?,email?,role_id?,is_active?,avatar_url?}
     resetPassword: (id) => `/admin/users/${id}/reset-password`, // POST {password?}
     bulk: "/admin/users/bulk",            // POST {action: 'activate'|'deactivate'|'assignRole'|'resetPassword', ids:[], role_id?}
+  },
+
+  dashboard: {
+    adminOverview: "/admin/dashboard",
+    productAnalytics: "/admin/dashboard/products",
+    customerAnalytics: "/admin/dashboard/customers",
+    campaignAnalytics: "/admin/dashboard/campaigns",
   },
 
   // ====== Admin: Roles (tùy chọn) ======

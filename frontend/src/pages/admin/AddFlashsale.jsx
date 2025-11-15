@@ -24,13 +24,27 @@ export default function AddFlashsale() {
                 body: JSON.stringify(payload),
             });
 
+            const newCampaignData = await res.json().catch(() => null);
+
             if (!res.ok) {
-                const err = await res.json().catch(() => null);
-                throw new Error(err?.message || `Tạo chiến dịch thất bại (${res.status})`);
+                throw new Error(newCampaignData?.message || `Tạo chiến dịch thất bại (${res.status})`);
             }
 
-            toast.success("Đã tạo chiến dịch");
-            nav("/admin/flashsales"); // Chuyển về trang danh sách
+            toast.success("Đã tạo chiến dịch. Giờ hãy thêm sản phẩm.");
+
+            // ⬇️ BẮT ĐẦU THAY ĐỔI ⬇️
+            // Lấy ID của chiến dịch vừa tạo
+            const newId = newCampaignData?.data?.id;
+
+            if (newId) {
+                // Chuyển thẳng đến trang "Edit" để thêm sản phẩm
+                nav(`/admin/flashsales-edit/${newId}`);
+            } else {
+                // Fallback: Nếu không lấy được ID, quay về trang danh sách
+                nav("/admin/flashsales");
+            }
+            // ⬆️ KẾT THÚC THAY ĐỔI ⬆️
+            
         } catch (e) {
             console.error(e);
             toast.error(e.message || "Lỗi tạo chiến dịch");

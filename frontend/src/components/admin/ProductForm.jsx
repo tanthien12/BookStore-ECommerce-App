@@ -23,7 +23,7 @@ export default function ProductForm({
 
     // 💡 Giá & Giá bán & Tồn kho
     const [price, setPrice] = useState("");
-    const [salePrice, setSalePrice] = useState(""); // NEW: sale_price (khuyến mãi, optional)
+    // const [salePrice, setSalePrice] = useState(""); // NEW: sale_price (khuyến mãi, optional)
     const [stock, setStock] = useState(0);
 
     // ====== Categories (TomSelect) ======
@@ -53,11 +53,11 @@ export default function ProductForm({
         setFormat(initialValues.format || "paperback");
         setDescription(initialValues.description || "");
         setPrice(initialValues.price ?? "");
-        setSalePrice(
-            initialValues.sale_price === null || initialValues.sale_price === undefined
-                ? ""
-                : String(initialValues.sale_price)
-        );
+        // setSalePrice(
+        //     initialValues.sale_price === null || initialValues.sale_price === undefined
+        //         ? ""
+        //         : String(initialValues.sale_price)
+        // );
         setStock(initialValues.stock ?? 0);
 
         // category ids
@@ -206,12 +206,12 @@ export default function ProductForm({
         }
 
         // sale_price là tùy chọn; nếu có thì phải hợp lệ và ≤ price
-        if (salePrice !== "" && (isNaN(+salePrice) || +salePrice < 0)) {
-            e.sale_price = "Giá bán (khuyến mãi) phải là số ≥ 0.";
-        }
-        if (salePrice !== "" && price !== "" && +salePrice > +price) {
-            e.sale_price = "Giá bán (khuyến mãi) phải ≤ Giá.";
-        }
+        // if (salePrice !== "" && (isNaN(+salePrice) || +salePrice < 0)) {
+        //     e.sale_price = "Giá bán (khuyến mãi) phải là số ≥ 0.";
+        // }
+        // if (salePrice !== "" && price !== "" && +salePrice > +price) {
+        //     e.sale_price = "Giá bán (khuyến mãi) phải ≤ Giá.";
+        // }
 
         if (stock === "" || isNaN(+stock) || +stock < 0 || !Number.isInteger(+stock)) {
             e.stock = "Tồn kho phải là số nguyên ≥ 0.";
@@ -265,7 +265,7 @@ export default function ProductForm({
             // Giá (price) bắt buộc
             fd.append("price", String(+price));
             // Giá bán (sale_price) chỉ append khi có giá trị -> backend nhận null/undefined
-            if (salePrice !== "") fd.append("sale_price", String(+salePrice));
+            // if (salePrice !== "") fd.append("sale_price", String(+salePrice));
 
             fd.append("stock", String(+stock));
             fd.append("description", description.trim());
@@ -472,7 +472,7 @@ export default function ProductForm({
 
             {/* Giá / Giá bán / Tồn kho */}
             <div className="bg-white rounded-xl shadow border border-gray-200 p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Giá (price) */}
                     <div>
                         <label className="block text-sm font-medium mb-1">Giá (VND) *</label>
@@ -490,7 +490,7 @@ export default function ProductForm({
                     </div>
 
                     {/* Giá bán (sale_price) */}
-                    <div>
+                    {/*<div>
                         <label className="block text-sm font-medium mb-1">
                             Giá bán (khuyến mãi) (VND)
                         </label>
@@ -507,7 +507,7 @@ export default function ProductForm({
                         {errors.sale_price && (
                             <div className="text-xs text-red-600 mt-1">{errors.sale_price}</div>
                         )}
-                    </div>
+                    </div>*/}
 
                     {/* Tồn kho */}
                     <div>

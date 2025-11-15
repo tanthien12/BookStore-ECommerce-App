@@ -235,8 +235,8 @@ const ShippingCard = () => (
     <div className="text-sm text-gray-600">
       Nhận dự kiến: 1-3 ngày · Miễn phí từ 299.000đ
     </div>
-    <div className="flex gap-3 text-sm">
-      <span className="rounded-lg bg-gray-100 px-2 py-1">ZaloPay</span>
+    <div className="flex gap-2 text-sm">
+      {/* <span className="rounded-lg bg-gray-100 px-2 py-1">ZaloPay</span> */}
       <span className="rounded-lg bg-gray-100 px-2 py-1">VNPay</span>
       <span className="rounded-lg bg-gray-100 px-2 py-1">COD</span>
     </div>

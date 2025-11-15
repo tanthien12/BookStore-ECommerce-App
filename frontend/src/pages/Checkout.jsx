@@ -185,11 +185,10 @@ export default function Checkout() {
         country: "Việt Nam",
       };
 
-      // ⬇️ BẮT ĐẦU SỬA PAYLOAD ⬇️
-      // Gửi payment_method ở cấp cao nhất
+      // Payload (Đã đúng)
       const payload = {
-        user_id: user?.id || null, // (Backend sẽ ưu tiên req.user.id nếu có)
-        status: "pending", // Backend sẽ tự trừ kho nếu là 'cod'
+        user_id: user?.id || null, 
+        status: "pending", 
         shipping_fee: shippingFee,
         discount_total: discount,
         shipping_method:
@@ -198,13 +197,11 @@ export default function Checkout() {
         items: checkoutItems.map((item) => ({
           book_id: item.productId,
           quantity: item.qty,
-          price: item.price, // map sang price_snapshot
+          price: item.price, 
         })),
   
-        payment_method: form.payment, // Gửi 'cod' hoặc 'vnpay'
+        payment_method: form.payment, 
         
-        // (Xóa object 'payment' cũ)
-
         coupon:
           discount > 0
             ? {
@@ -215,7 +212,6 @@ export default function Checkout() {
         invoice:
           form.need_invoice === true ? { email: form.tax_email } : null,
       };
-      // ⬆️ KẾT THÚC SỬA PAYLOAD ⬆️
 
       const created = await orderApi.create(payload);
       const orderId = created?.data?.id || null; // Lấy ID đơn hàng từ kết quả
@@ -246,22 +242,16 @@ export default function Checkout() {
           return;
         }
       }
-
-      // Nếu là COD, chỉ cần chuyển trang
-      localStorage.setItem(
-        "order_draft",
-        JSON.stringify({
-          orderId: orderId,
-          total,
-          payment_method: form.payment,
-          shipping_method: form.shipping,
-          address: shippingAddress,
-          items: checkoutItems,
-        })
-      );
-
+      // (Xóa localStorage.setItem("order_draft") vì trang success không dùng)
+      
       clearCart();
-      navigate("/checkout/success", { replace: true });
+      
+      // Sửa: Chuyển hướng với 'orderId' và 'amount' (lấy từ biến 'total')
+      navigate(`/checkout-success?orderId=${orderId}&amount=${total}&method=cod`, { 
+        replace: true 
+      });
+      
+
     } catch (err) {
       console.error("placeOrder error:", err);
       alert(
@@ -278,8 +268,6 @@ export default function Checkout() {
     <div className="mx-auto max-w-6xl px-3 md:px-4 py-6 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-6">
       {/* LEFT */}
       <div className="space-y-4">
-        {/* ... (Phần JSX còn lại giữ nguyên: Tài khoản, Giao hàng, Vận chuyển, Thanh toán ...) ... */}
-        {/* ... (Toàn bộ JSX từ dòng 276 (section Tài khoản) đến 570 (button Đặt hàng) giữ nguyên) ... */}
         {/* 1. Tài khoản */}
         <section className="rounded-2xl border border-gray-200 bg-white">
           <div className="px-4 py-3 border-b font-semibold">Tài khoản</div>

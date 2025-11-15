@@ -76,11 +76,11 @@ const router = createBrowserRouter([
                 element: <Checkout />
             },
             {
-                path: '/checkout/success',
+                path: '/checkout-success',
                 element: <CheckoutSuccess />
             },
             {
-                path: '/checkout/fail',
+                path: '/checkout-fail',
                 element: <CheckoutFail />
             },
             // ket thuc them moi

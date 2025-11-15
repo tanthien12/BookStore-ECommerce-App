@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Autoplay } from "swiper/modules";
@@ -47,10 +46,13 @@ const BannerAds = () => {
                 </div>
 
                 {/* Side banners */}
-                <div className="flex flex-col gap-4">
+                {/* THAY ĐỔI: Thêm 'h-full' để container này lấp đầy chiều cao của ô lưới */}
+                <div className="flex flex-col gap-4 h-full">
                     {sideBanners.map((src, idx) => (
-                        <a href="#" key={idx} className="block rounded-xl overflow-hidden">
-                            <img src={src} alt={`Side ${idx + 1}`} className="w-full object-cover" />
+                        // THAY ĐỔI: Thêm 'flex-1' để 2 banner này chia đều chiều cao
+                        <a href="#" key={idx} className="block rounded-xl overflow-hidden flex-1">
+                            {/* THAY ĐỔI: Thêm 'h-full' để ảnh lấp đầy thẻ <a> */}
+                            <img src={src} alt={`Side ${idx + 1}`} className="w-full h-full object-cover" />
                         </a>
                     ))}
                 </div>
@@ -59,8 +61,10 @@ const BannerAds = () => {
             {/* Small banners row */}
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                 {smallBanners.map((src, idx) => (
-                    <a href="#" key={idx} className="block rounded-xl overflow-hidden">
-                        <img src={src} alt={`Small ${idx + 1}`} className="w-full object-cover" />
+                    // THAY ĐỔI: Thêm 'aspect-[2/1]' để cố định tỷ lệ (bạn có thể đổi thành aspect-video nếu muốn)
+                    <a href="#" key={idx} className="block rounded-xl overflow-hidden aspect-[2/1]">
+                        {/* THAY ĐỔI: Thêm 'h-full' để ảnh lấp đầy thẻ <a> */}
+                        <img src={src} alt={`Small ${idx + 1}`} className="w-full h-full object-cover" />
                     </a>
                 ))}
             </div>

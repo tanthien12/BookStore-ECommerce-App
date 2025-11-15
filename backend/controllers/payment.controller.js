@@ -34,19 +34,38 @@ async function createVNPayUrl(req, res) {
 /** VNPay: return URL – Service sẽ tự verify + cập nhật DB */
 async function vnpayReturn(req, res) {
   try {
-    const result = await PaymentService.handleVNPayReturn(req.query);
+    // Lấy lại các query param từ VNPAY để gửi về frontend
+    const vnpParams = req.query || {};
+    
+    // Service xử lý (đã đúng)
+    const result = await PaymentService.handleVNPayReturn(vnpParams);
     // result: { ok: boolean, orderId, status, reason? }
 
     if (!result.ok) {
       const reason = result.reason || "unknown";
-      return res.redirect(`${CLIENT_URL}/checkout/fail?reason=${encodeURIComponent(reason)}`);
+      
+      // Sửa 1: Thêm orderId, code, method vào redirect thất bại
+      const orderId = result.orderId || vnpParams['vnp_TxnRef'] || "";
+      const code = vnpParams['vnp_ResponseCode'] || "XX";
+      
+      return res.redirect(`${CLIENT_URL}/checkout-fail?orderId=${orderId}&reason=${encodeURIComponent(reason)}&code=${code}&method=vnpay`);
     }
 
     // Thành công
-    return res.redirect(`${CLIENT_URL}/checkout/success?order_id=${result.orderId}`);
+    // Sửa 2: Thêm amount, method, code, txn vào redirect thành công
+    const orderId = result.orderId; // Đã xác thực
+    const amount = Number(vnpParams['vnp_Amount']) / 100; // VNPAY trả về * 100
+    const code = vnpParams['vnp_ResponseCode'];
+    const txnId = vnpParams['vnp_TransactionNo'];
+    
+    const successUrl = `${CLIENT_URL}/checkout-success?orderId=${orderId}&amount=${amount}&method=vnpay&code=${code}&txn=${txnId}`;
+    
+    return res.redirect(successUrl);
+
+    
   } catch (err) {
     console.error("[VNPay][RETURN] error:", err);
-    return res.redirect(`${CLIENT_URL}/checkout/fail?reason=server_error`);
+    return res.redirect(`${CLIENT_URL}/checkout-fail?reason=server_error`);
   }
 }
 

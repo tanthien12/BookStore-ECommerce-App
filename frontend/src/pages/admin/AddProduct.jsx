@@ -98,18 +98,18 @@ export default function AddProduct() {
             const stock = toInt(fd.get("stock"), 0);
             const description = fd.get("description") || "";
 
-            // NEW: sale_price (tùy chọn)
-            let sale_price = null;
-            if (fd.has("sale_price")) {
-                const raw = fd.get("sale_price");
-                if (raw !== "" && raw !== null) {
-                    sale_price = toNum(raw, null);
-                }
-            }
+            // // NEW: sale_price (tùy chọn)
+            // let sale_price = null;
+            // if (fd.has("sale_price")) {
+            //     const raw = fd.get("sale_price");
+            //     if (raw !== "" && raw !== null) {
+            //         sale_price = toNum(raw, null);
+            //     }
+            // }
             // Guard lần nữa
-            if (sale_price !== null && sale_price > price) {
-                throw new Error("Giá bán (khuyến mãi) phải ≤ Giá.");
-            }
+            // if (sale_price !== null && sale_price > price) {
+            //     throw new Error("Giá bán (khuyến mãi) phải ≤ Giá.");
+            // }
 
             // 6) payload — luôn gửi gallery_urls là mảng
             const payload = {
@@ -128,9 +128,9 @@ export default function AddProduct() {
                 category_ids, // UUID[]
             };
             // chỉ thêm sale_price khi có giá trị
-            if (sale_price !== null && !Number.isNaN(sale_price)) {
-                payload.sale_price = sale_price;
-            }
+            // if (sale_price !== null && !Number.isNaN(sale_price)) {
+            //     payload.sale_price = sale_price;
+            // }
 
             const res = await fetch(summaryApi.url(summaryApi.book.create), {
                 method: "POST",

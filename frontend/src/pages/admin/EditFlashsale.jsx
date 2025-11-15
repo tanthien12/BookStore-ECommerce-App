@@ -1,13 +1,13 @@
 // src/pages/admin/EditFlashsale.jsx
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { MdAdd, MdDelete, MdSearch } from "react-icons/md";
+import { MdAdd, MdDelete } from "react-icons/md";
 import { toast } from "react-toastify";
 import summaryApi from "../../common";
 import FlashsaleForm from "../../components/admin/FlashsaleForm";
-import { money } from "../../helpers/productHelper"; // Import hàm money
+import { money } from "../../helpers/productHelper";
 
-const toVND = money; // Dùng hàm money của bạn
+const toVND = money;
 
 export default function EditFlashsale() {
     const { id } = useParams();
@@ -19,16 +19,19 @@ export default function EditFlashsale() {
     
     // State cho Form Thêm Sản Phẩm
     const [bookSearch, setBookSearch] = useState("");
+    const [isSearching, setIsSearching] = useState(false);
     const [searchResults, setSearchResults] = useState([]);
     const [selectedBook, setSelectedBook] = useState(null);
     const [salePrice, setSalePrice] = useState("");
     const [saleQuantity, setSaleQuantity] = useState("");
+    
+    const debounceTimer = useRef(null); // cho debounce
 
     // Tải chi tiết chiến dịch (gồm campaign + items)
     const fetchCampaignDetails = useCallback(async () => {
         try {
             setLoadingCampaign(true);
-            const url = summaryApi.url(summaryApi.flashsale.detail(id)); // GET /api/flashsales/:id
+            const url = summaryApi.url(summaryApi.flashsale.detail(id));
             const res = await fetch(url);
             if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
             const data = await res.json();
@@ -48,38 +51,64 @@ export default function EditFlashsale() {
     useEffect(() => {
         fetchCampaignDetails();
     }, [fetchCampaignDetails]);
+    
+    // Logic tìm kiếm tự động (debounce)
+    useEffect(() => {
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+        
+        if (!bookSearch.trim()) {
+            setSearchResults([]);
+            setIsSearching(false);
+            return;
+        }
+
+        setIsSearching(true); 
+
+        debounceTimer.current = setTimeout(async () => {
+            try {
+                const url = new URL(summaryApi.url(summaryApi.book.list));
+                url.searchParams.set("q", bookSearch.trim()); 
+                url.searchParams.set("limit", 5);
+                
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                if (selectedBook === null) { 
+                    setSearchResults(data.items || []);
+                }
+            } catch (e) {
+                toast.error("Tìm sách thất bại");
+                setSearchResults([]);
+            } finally {
+                setIsSearching(false); 
+            }
+        }, 300); // Trì hoãn 300ms
+
+        return () => {
+            if (debounceTimer.current) {
+                clearTimeout(debounceTimer.current);
+            }
+        };
+    }, [bookSearch, selectedBook]);
 
     // Xử lý cập nhật thông tin chiến dịch
     const handleUpdate = async (payload) => {
         try {
             setLoadingCampaign(true);
-            const res = await fetch(summaryApi.url(summaryApi.flashsale.update(id)), { // PUT /api/flashsales/:id
+            const res = await fetch(summaryApi.url(summaryApi.flashsale.update(id)), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
             if (!res.ok) throw new Error("Cập nhật thất bại");
             toast.success("Đã cập nhật chiến dịch");
-            fetchCampaignDetails(); // Tải lại
+            fetchCampaignDetails();
         } catch (e) {
             toast.error(e.message);
         } finally {
             setLoadingCampaign(false);
-        }
-    };
-
-    // Xử lý tìm kiếm sách để thêm
-    const handleBookSearch = async () => {
-        if (!bookSearch.trim()) return;
-        try {
-            const url = new URL(summaryApi.url(summaryApi.book.list));
-            url.searchParams.set("q", bookSearch);
-            url.searchParams.set("limit", 5); // Chỉ lấy 5 kết quả
-            const res = await fetch(url);
-            const data = await res.json();
-            setSearchResults(data.items || []);
-        } catch (e) {
-            toast.error("Tìm sách thất bại");
         }
     };
     
@@ -103,9 +132,15 @@ export default function EditFlashsale() {
             return;
         }
 
+        // Kiểm tra số lượng sale không vượt quá tồn kho
+        if (payload.sale_quantity > (selectedBook.stock ?? 0)) {
+            toast.error(`Số lượng sale (${payload.sale_quantity}) không được vượt quá tồn kho (${selectedBook.stock ?? 0})`);
+            return;
+        }
+
         try {
             setLoadingItems(true);
-            const res = await fetch(summaryApi.url(summaryApi.flashsale.addItem), { // POST /api/flashsales/items
+            const res = await fetch(summaryApi.url(summaryApi.flashsale.addItem), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -113,9 +148,8 @@ export default function EditFlashsale() {
             if (!res.ok) throw new Error("Thêm sản phẩm thất bại");
             
             toast.success(`Đã thêm/cập nhật ${selectedBook.title}`);
-            fetchCampaignDetails(); // Tải lại
+            fetchCampaignDetails();
             
-            // Reset form
             setSelectedBook(null);
             setBookSearch("");
             setSearchResults([]);
@@ -134,13 +168,13 @@ export default function EditFlashsale() {
         
         try {
             setLoadingItems(true);
-            const res = await fetch(summaryApi.url(summaryApi.flashsale.removeItem(itemId)), { // DELETE /api/flashsales/items/:id
+            const res = await fetch(summaryApi.url(summaryApi.flashsale.removeItem(itemId)), {
                 method: "DELETE",
             });
             if (!res.ok) throw new Error("Xóa thất bại");
             
             toast.success(`Đã xóa ${bookTitle}`);
-            fetchCampaignDetails(); // Tải lại
+            fetchCampaignDetails();
         } catch (e) {
             toast.error(e.message);
         } finally {
@@ -174,19 +208,24 @@ export default function EditFlashsale() {
                         {/* Cột 1: Tìm kiếm */}
                         <div className="md:col-span-1">
                             <label className="text-sm font-medium">1. Tìm sách</label>
-                            <div className="flex gap-2 mt-1">
+                            <div className="relative mt-1">
                                 <input
                                     type="text"
                                     value={bookSearch}
-                                    onChange={(e) => setBookSearch(e.target.value)}
-                                    placeholder="Tìm theo tên sách..."
-                                    className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                                    onChange={(e) => {
+                                        setBookSearch(e.target.value);
+                                        setSelectedBook(null);
+                                    }}
+                                    placeholder="Tìm theo tên sách hoặc tác giả..."
+                                    className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10"
                                 />
-                                <button type="button" onClick={handleBookSearch} className="rounded-lg bg-gray-200 px-3 py-2">
-                                    <MdSearch />
-                                </button>
+                                {isSearching && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        <div className="w-4 h-4 border-2 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
+                                    </div>
+                                )}
                             </div>
-                            {/* Kết quả tìm kiếm */}
+                            
                             {searchResults.length > 0 && (
                                 <div className="mt-2 border rounded-lg max-h-40 overflow-auto">
                                     {searchResults.map(book => (
@@ -195,8 +234,8 @@ export default function EditFlashsale() {
                                             key={book.id}
                                             onClick={() => {
                                                 setSelectedBook(book);
-                                                setBookSearch(book.title);
-                                                setSearchResults([]);
+                                                setBookSearch(book.title); 
+                                                setSearchResults([]); 
                                             }}
                                             className="block w-full text-left px-3 py-2 hover:bg-gray-100"
                                         >
@@ -222,7 +261,11 @@ export default function EditFlashsale() {
                                     />
                                 </div>
                                 <div className="md:col-span-1">
-                                    <label className="text-sm font-medium">3. Số lượng bán*</label>
+                                    {/* ⬇️ BẮT ĐẦU SỬA (DÒNG NÀY) ⬇️ */}
+                                    <label className="text-sm font-medium">
+                                        3. Số lượng bán* <span className="text-gray-500 font-normal"> (Tồn kho: {selectedBook.stock ?? 0})</span>
+                                    </label>
+                                    {/* ⬆️ KẾT THÚC SỬA ⬆️ */}
                                     <input
                                         type="number"
                                         value={saleQuantity}
@@ -248,7 +291,7 @@ export default function EditFlashsale() {
                     )}
                 </form>
                 
-                {/* Bảng sản phẩm đã có */}
+                {/* Bảng sản phẩm đã có (Giữ nguyên) */}
                 <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-50 text-gray-600">

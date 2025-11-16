@@ -5,7 +5,9 @@ const { TOOL_REGISTRY } = require("./chat.tools");
 
 function sseWrite(res, event, data) {
     if (event) res.write(`event: ${event}\n`);
-    res.write(`data: ${typeof data === "string" ? data : JSON.stringify(data)}\n\n`);
+    const payload = typeof data === "string" ? data : JSON.stringify(data);
+    for (const line of String(payload).split(/\r?\n/)) res.write(`data: ${line}\n`);
+    res.write("\n");
 }
 
 // Giới hạn số message trong history để tránh phình context
@@ -290,6 +292,7 @@ async function streamGemini({ res, conversationId, user, userInput }) {
             return;
         }
         const ownerId = convRes.rows[0].user_id;
+        const effectiveUserId = userId || ownerId || null;
         if (ownerId && userId && ownerId !== userId) {
             sseWrite(res, "error", {
                 code: "CONVERSATION_FORBIDDEN",
@@ -308,7 +311,8 @@ async function streamGemini({ res, conversationId, user, userInput }) {
         // Phase A: detect & run tool
         let plan = { used: false };
         try {
-            plan = await planToolIfAny({ history, userId });
+            // plan = await planToolIfAny({ history, userId });
+            plan = await planToolIfAny({ history, userId: effectiveUserId });
         } catch (e) {
             console.error("[planToolIfAny] error:", e?.message || e);
         }

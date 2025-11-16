@@ -2,6 +2,7 @@
 // backend/src/controllers/chat.controller.js
 const { startConversation, streamGemini } = require("../services/chat.service");
 const { pool } = require("../config/db.config");
+const jwt = require("jsonwebtoken");
 
 async function start(req, res) {
     const userId = req.user?.id || null;
@@ -51,6 +52,15 @@ async function health(req, res) {
 }
 
 async function stream(req, res) {
+    // Nhận token từ query (vì EventSource không gửi Authorization header)
+    try {
+        const qToken = (req.query.token || "").toString();
+        if (qToken) {
+            const payload = jwt.verify(qToken, process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET);
+            req.user = { id: payload.id || payload.user_id, email: payload.email, role: payload.role };
+        }
+    } catch (_) { /* token không hợp lệ -> xem như guest */ }
+    
     const q = (req.query.q || "").toString();
     const conversationId = (req.query.conversationId || "").toString();
     if (!q || !conversationId) {

@@ -296,6 +296,10 @@ export default function ChatLauncher() {
                     const url = new URL(summaryApi.url("/chat/stream"));
                     url.searchParams.set("q", text);
                     url.searchParams.set("conversationId", convId);
+                    // đưa Bearer token (nếu app bạn lưu token ở authHeaders)
+                    const h = authHeaders?.() || {};
+                    const raw = (h.Authorization || h.authorization || "").replace(/^Bearer\s+/i, "");
+                    if (raw) url.searchParams.set("token", raw);
                     return url.toString();
                 })();
 
@@ -378,211 +382,220 @@ export default function ChatLauncher() {
 
             {open && (
                 <div className="fixed inset-0 z-[9998]">
-                    <div
+                    {/* <div
                         className="absolute inset-0 bg-black/40"
                         onClick={() => setOpen(false)}
-                    />
+                    /> */}
+                    {/* Bỏ overlay hoặc để trong suốt nếu vẫn muốn click-để-đóng */}
+                    {/* <div className="absolute inset-0" onClick={() => setOpen(false)} /> */}
                     <div className="absolute bottom-0 right-0 md:right-6 md:bottom-6 w-full md:w-[560px]">
-                        <div className="mx-auto m-3 md:m-0 rounded-3xl shadow-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur ring-1 ring-black/5 overflow-hidden">
-                            {/* Header */}
-                            <div className="px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <BotAvatar />
-                                    <div>
-                                        <p className="font-semibold text-zinc-900 dark:text-zinc-50">
-                                            Trợ lý BookStore
-                                        </p>
-                                        <p className="text-xs text-zinc-600 dark:text-zinc-300 flex items-center gap-2">
-                                            <StatusDot status={status} />
+
+                        {/* Nếu không muốn làm mờ nền sau lưng khung chat, bỏ class `backdrop-blur` */}
+                        <div className="mx-auto m-3 md:m-0 rounded-3xl shadow-2xl bg-white/95 dark:bg-zinc-900/95 ring-1 ring-black/5 overflow-hidden"></div>
+
+                        {/* <div className="absolute bottom-0 right-0 md:right-6 md:bottom-6 w-full md:w-[560px]"> */}
+                            <div className="mx-auto m-3 md:m-0 rounded-3xl shadow-2xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur ring-1 ring-black/5 overflow-hidden">
+                                {/* Header */}
+                                <div className="px-5 py-4 border-b border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <BotAvatar />
+                                        <div>
+                                            <p className="font-semibold text-zinc-900 dark:text-zinc-50">
+                                                Trợ lý BookStore
+                                            </p>
+                                            <p className="text-xs text-zinc-600 dark:text-zinc-300 flex items-center gap-2">
+                                                <StatusDot status={status} />
+                                                {status === "ok"
+                                                    ? "Sẵn sàng"
+                                                    : status === "checking"
+                                                        ? "Đang kiểm tra…"
+                                                        : "Lỗi cấu hình"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => resetChat(true)}
+                                            className="text-xs px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100"
+                                        >
+                                            Xoá chat
+                                        </button>
+                                        <button
+                                            onClick={() => resetChat(false)}
+                                            className="text-xs px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100"
+                                        >
+                                            Phiên mới
+                                        </button>
+                                        <button
+                                            onClick={() => setOpen(false)}
+                                            className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                                            title="Đóng"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Messages */}
+                                <div
+                                    ref={listRef}
+                                    className="p-5 h-[64vh] overflow-y-auto space-y-4 bg-gradient-to-b from-zinc-50/70 to-white/70 dark:from-zinc-950/60 dark:to-zinc-900/60 text-zinc-900 dark:text-zinc-50"
+                                >
+                                    {messages.length === 0 && (
+                                        <div className="text-[15px] leading-relaxed">
+                                            <p className="mb-3 text-zinc-800 dark:text-zinc-100">
+                                                Xin chào! Mình có thể gợi ý sách theo thể loại, ngân sách;
+                                                hoặc kiểm tra trạng thái đơn hàng. Bắt đầu bằng một câu
+                                                hỏi nha. 📚
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {quickPrompts.map((q) => (
+                                                    <button
+                                                        key={q}
+                                                        onClick={() => handleSend(q)}
+                                                        className="px-3 py-1.5 text-xs rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-rose-400 hover:text-rose-600 dark:hover:border-rose-400 transition text-zinc-700 dark:text-zinc-100"
+                                                    >
+                                                        {q}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {messages.map((m, i) => {
+                                        const isUser = m.sender === "user";
+                                        return (
+                                            <div
+                                                key={i}
+                                                className={`flex items-start gap-3 ${isUser ? "justify-end" : "justify-start"
+                                                    }`}
+                                            >
+                                                {!isUser && <BotAvatar />}
+                                                <div
+                                                    className={[
+                                                        "max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed shadow-sm",
+                                                        isUser
+                                                            ? "bg-rose-600 text-white rounded-tr-[8px]"
+                                                            : "bg-white/95 dark:bg-zinc-800/95 text-zinc-900 dark:text-zinc-50 rounded-tl-[8px] border border-zinc-100 dark:border-zinc-700",
+                                                    ].join(" ")}
+                                                >
+                                                    {m.type === "products" ? (
+                                                        <ProductsMessage
+                                                            items={m.payload?.items || []}
+                                                            onAction={async (act, book) => {
+                                                                if (act === "view") {
+                                                                    // 👉 Xem chi tiết sách
+                                                                    setOpen(false);
+                                                                    navigate(`${BOOK_DETAIL_BASE_PATH}/${book.id}`);
+                                                                } else if (act === "buy_now") {
+                                                                    // 👉 Mua ngay: dùng CartContext (giống ProductDetail) rồi chuyển tới giỏ
+                                                                    const ok = await addToCart(
+                                                                        {
+                                                                            id: book.id,
+                                                                            title: book.title,
+                                                                            price: Number(book.price || 0),
+                                                                            image_url: book.image,
+                                                                        },
+                                                                        1
+                                                                    );
+                                                                    if (ok) {
+                                                                        toast.success("Đã thêm vào giỏ hàng", {
+                                                                            autoClose: 1200,
+                                                                        });
+                                                                        setOpen(false);
+                                                                        navigate(CART_PATH);
+                                                                    }
+                                                                } else if (act === "similar") {
+                                                                    handleSend(
+                                                                        `Gợi ý tương tự cho "${book.title}"`
+                                                                    );
+                                                                } else if (act === "under_200k") {
+                                                                    handleSend(
+                                                                        `Lọc sách dưới 200000 VNĐ liên quan "${book.title}"`
+                                                                    );
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : m.type === "order_status" ? (
+                                                        <OrderStatusMessage order={m.order} />
+                                                    ) : (
+                                                        <div className="whitespace-pre-wrap">
+                                                            {m.text ||
+                                                                (streaming && !isUser ? <TypingDots /> : null)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {isUser && <UserAvatar />}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Composer */}
+                                <div className="p-4 border-t border-zinc-200/60 dark:border-zinc-800">
+                                    <div className="flex items-end gap-2">
+                                        <textarea
+                                            ref={taRef}
+                                            className="flex-1 rounded-2xl border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-[15px] leading-6 outline-none focus:ring-2 focus:ring-rose-500 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
+                                            placeholder={
+                                                streaming
+                                                    ? "Đang phản hồi..."
+                                                    : "Nhập câu hỏi, ví dụ: Kiểm tra trạng thái đơn #ABC123"
+                                            }
+                                            value={input}
+                                            onChange={(e) => setInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleSend();
+                                                }
+                                            }}
+                                            rows={1}
+                                            disabled={streaming}
+                                        />
+                                        {!streaming ? (
+                                            <button
+                                                onClick={() => handleSend()}
+                                                disabled={!input.trim()}
+                                                className="rounded-2xl bg-rose-600 text-white px-4 py-2 text-sm shadow hover:bg-rose-700 disabled:opacity-50"
+                                            >
+                                                Gửi
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => {
+                                                    try {
+                                                        esRef.current?.close?.();
+                                                    } catch { }
+                                                    setStreaming(false);
+                                                }}
+                                                className="rounded-2xl bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 px-4 py-2 text-sm shadow hover:bg-zinc-300 dark:hover:bg-zinc-700"
+                                                title="Dừng stream"
+                                            >
+                                                Dừng
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="mt-2 flex items-center justify-between text-[12px] text-zinc-600 dark:text-zinc-300">
+                                        <span>
+                                            Trạng thái:{" "}
                                             {status === "ok"
                                                 ? "Sẵn sàng"
                                                 : status === "checking"
                                                     ? "Đang kiểm tra…"
                                                     : "Lỗi cấu hình"}
-                                        </p>
+                                        </span>
+                                        <span className="italic">
+                                            Nhấn Enter để gửi • Shift+Enter xuống dòng
+                                        </span>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => resetChat(true)}
-                                        className="text-xs px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100"
-                                    >
-                                        Xoá chat
-                                    </button>
-                                    <button
-                                        onClick={() => resetChat(false)}
-                                        className="text-xs px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100"
-                                    >
-                                        Phiên mới
-                                    </button>
-                                    <button
-                                        onClick={() => setOpen(false)}
-                                        className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-                                        title="Đóng"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Messages */}
-                            <div
-                                ref={listRef}
-                                className="p-5 h-[64vh] overflow-y-auto space-y-4 bg-gradient-to-b from-zinc-50/70 to-white/70 dark:from-zinc-950/60 dark:to-zinc-900/60 text-zinc-900 dark:text-zinc-50"
-                            >
-                                {messages.length === 0 && (
-                                    <div className="text-[15px] leading-relaxed">
-                                        <p className="mb-3 text-zinc-800 dark:text-zinc-100">
-                                            Xin chào! Mình có thể gợi ý sách theo thể loại, ngân sách;
-                                            hoặc kiểm tra trạng thái đơn hàng. Bắt đầu bằng một câu
-                                            hỏi nha. 📚
-                                        </p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {quickPrompts.map((q) => (
-                                                <button
-                                                    key={q}
-                                                    onClick={() => handleSend(q)}
-                                                    className="px-3 py-1.5 text-xs rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-rose-400 hover:text-rose-600 dark:hover:border-rose-400 transition text-zinc-700 dark:text-zinc-100"
-                                                >
-                                                    {q}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {messages.map((m, i) => {
-                                    const isUser = m.sender === "user";
-                                    return (
-                                        <div
-                                            key={i}
-                                            className={`flex items-start gap-3 ${isUser ? "justify-end" : "justify-start"
-                                                }`}
-                                        >
-                                            {!isUser && <BotAvatar />}
-                                            <div
-                                                className={[
-                                                    "max-w-[80%] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed shadow-sm",
-                                                    isUser
-                                                        ? "bg-rose-600 text-white rounded-tr-[8px]"
-                                                        : "bg-white/95 dark:bg-zinc-800/95 text-zinc-900 dark:text-zinc-50 rounded-tl-[8px] border border-zinc-100 dark:border-zinc-700",
-                                                ].join(" ")}
-                                            >
-                                                {m.type === "products" ? (
-                                                    <ProductsMessage
-                                                        items={m.payload?.items || []}
-                                                        onAction={async (act, book) => {
-                                                            if (act === "view") {
-                                                                // 👉 Xem chi tiết sách
-                                                                navigate(`${BOOK_DETAIL_BASE_PATH}/${book.id}`);
-                                                            } else if (act === "buy_now") {
-                                                                // 👉 Mua ngay: dùng CartContext (giống ProductDetail) rồi chuyển tới giỏ
-                                                                const ok = await addToCart(
-                                                                    {
-                                                                        id: book.id,
-                                                                        title: book.title,
-                                                                        price: Number(book.price || 0),
-                                                                        image_url: book.image,
-                                                                    },
-                                                                    1
-                                                                );
-                                                                if (ok) {
-                                                                    toast.success("Đã thêm vào giỏ hàng", {
-                                                                        autoClose: 1200,
-                                                                    });
-                                                                    navigate(CART_PATH);
-                                                                }
-                                                            } else if (act === "similar") {
-                                                                handleSend(
-                                                                    `Gợi ý tương tự cho "${book.title}"`
-                                                                );
-                                                            } else if (act === "under_200k") {
-                                                                handleSend(
-                                                                    `Lọc sách dưới 200000 VNĐ liên quan "${book.title}"`
-                                                                );
-                                                            }
-                                                        }}
-                                                    />
-                                                ) : m.type === "order_status" ? (
-                                                    <OrderStatusMessage order={m.order} />
-                                                ) : (
-                                                    <div className="whitespace-pre-wrap">
-                                                        {m.text ||
-                                                            (streaming && !isUser ? <TypingDots /> : null)}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {isUser && <UserAvatar />}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Composer */}
-                            <div className="p-4 border-t border-zinc-200/60 dark:border-zinc-800">
-                                <div className="flex items-end gap-2">
-                                    <textarea
-                                        ref={taRef}
-                                        className="flex-1 rounded-2xl border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-[15px] leading-6 outline-none focus:ring-2 focus:ring-rose-500 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
-                                        placeholder={
-                                            streaming
-                                                ? "Đang phản hồi..."
-                                                : "Nhập câu hỏi, ví dụ: Kiểm tra trạng thái đơn #ABC123"
-                                        }
-                                        value={input}
-                                        onChange={(e) => setInput(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter" && !e.shiftKey) {
-                                                e.preventDefault();
-                                                handleSend();
-                                            }
-                                        }}
-                                        rows={1}
-                                        disabled={streaming}
-                                    />
-                                    {!streaming ? (
-                                        <button
-                                            onClick={() => handleSend()}
-                                            disabled={!input.trim()}
-                                            className="rounded-2xl bg-rose-600 text-white px-4 py-2 text-sm shadow hover:bg-rose-700 disabled:opacity-50"
-                                        >
-                                            Gửi
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={() => {
-                                                try {
-                                                    esRef.current?.close?.();
-                                                } catch { }
-                                                setStreaming(false);
-                                            }}
-                                            className="rounded-2xl bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 px-4 py-2 text-sm shadow hover:bg-zinc-300 dark:hover:bg-zinc-700"
-                                            title="Dừng stream"
-                                        >
-                                            Dừng
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="mt-2 flex items-center justify-between text-[12px] text-zinc-600 dark:text-zinc-300">
-                                    <span>
-                                        Trạng thái:{" "}
-                                        {status === "ok"
-                                            ? "Sẵn sàng"
-                                            : status === "checking"
-                                                ? "Đang kiểm tra…"
-                                                : "Lỗi cấu hình"}
-                                    </span>
-                                    <span className="italic">
-                                        Nhấn Enter để gửi • Shift+Enter xuống dòng
-                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
             )}
-        </>
-    );
+                </>
+            );
 }
 
 

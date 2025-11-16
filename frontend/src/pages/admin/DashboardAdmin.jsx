@@ -914,7 +914,7 @@ function CustomerCohortChart({ data }) {
         );
     return (
         <Card className="h-[360px]">
-            <div className="font-semibold mb-4">Cohort khách hàng theo tháng</div>
+            <div className="font-semibold mb-4">Nhóm khách hàng theo tháng</div>
             <div className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart

@@ -1,11 +1,10 @@
 // src/pages/user/Wishlist.jsx
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import summaryApi from "../../common";
+import summaryApi, { authHeaders } from "../../common";
 import { Link } from "react-router-dom";
 
-const token = () => localStorage.getItem('access_token') || localStorage.getItem('token');
-const authHeaders = () => token() ? { Authorization: `Bearer ${token()}` } : {};
+
 const money = v => (Number(v) || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 
 export default function Wishlist() {

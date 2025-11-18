@@ -2,9 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { FiTruck, FiShield, FiHeart, FiShoppingCart } from "react-icons/fi";
+import { FaHeart } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
-import summaryApi from "../common";
+import summaryApi, { authHeaders } from "../common";
 import { useCart } from "../context/CartContext";
 
 // helper format tiền của bạn
@@ -360,9 +361,9 @@ function SaleProgress({ sold, total }) {
           style={{ width: `${percent}%` }}
         ></div>
         <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs font-bold text-white text-shadow-sm">
-                {sold >= total ? "Đã hết hàng" : `Đã bán ${sold}`}
-            </span>
+          <span className="text-xs font-bold text-white text-shadow-sm">
+            {sold >= total ? "Đã hết hàng" : `Đã bán ${sold}`}
+          </span>
         </div>
       </div>
     </div>
@@ -381,6 +382,10 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const [reviews, setReviews] = useState([]);
+
+  // thêm gần phần khai báo state khác
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   // Load reviews
   const loadReviews = async () => {
@@ -423,9 +428,42 @@ export default function ProductDetail() {
     };
   }, [id]);
 
+  // Wishlist
+  useEffect(() => {
+    if (!book?.id) return;      // chưa có book thì bỏ
+    // nếu bạn có state user, có thể check chưa login thì return luôn
+    // if (!currentUser) return;
+
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        const res = await fetch(
+          summaryApi.url(summaryApi.wishlist.list),
+          {
+            headers: { ...authHeaders() },
+            signal: controller.signal,
+          }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) return;
+
+        const exists = (data.items || []).some(
+          (item) => item.book_id === book.id
+        );
+        setIsWishlisted(exists);
+      } catch (err) {
+        // im lặng cũng được, không cần toast ở đây
+      }
+    })();
+
+    return () => controller.abort();
+  }, [book?.id]);
+
+
   // --- Logic giá mới ---
   const activeSale = book?.active_flashsale; // (null hoặc object)
-  
+
   const hasSale =
     activeSale &&
     activeSale.sale_price != null &&
@@ -434,7 +472,7 @@ export default function ProductDetail() {
 
   const price = hasSale ? Number(activeSale.sale_price) : Number(book?.price ?? 0);
   const oldPrice = hasSale ? Number(book.price) : null;
-  
+
   const discountPercent = hasSale
     ? Math.round(((oldPrice - price) / oldPrice) * 100)
     : 0;
@@ -479,6 +517,61 @@ export default function ProductDetail() {
     );
     if (ok) navigate("/cart");
   };
+
+  // handle wishlist
+  const handleToggleWishlist = async () => {
+    if (!book?.id) return;
+
+    // nếu bạn có state user, check luôn; ở đây check token qua authHeaders cũng OK
+    const headers = authHeaders();
+    if (!headers?.Authorization) {
+      toast.info("Bạn cần đăng nhập để sử dụng danh sách yêu thích");
+      navigate("/login");
+      return;
+    }
+
+    if (wishlistLoading) return;
+    setWishlistLoading(true);
+
+    try {
+      if (!isWishlisted) {
+        // ADD
+        const res = await fetch(
+          summaryApi.url(summaryApi.wishlist.add(book.id)),
+          {
+            method: "POST",
+            headers,
+          }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          throw new Error(data?.message || "Không thể thêm vào yêu thích");
+        }
+        setIsWishlisted(true);
+        toast.success("Đã thêm vào danh sách yêu thích");
+      } else {
+        // REMOVE
+        const res = await fetch(
+          summaryApi.url(summaryApi.wishlist.remove(book.id)),
+          {
+            method: "DELETE",
+            headers,
+          }
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success) {
+          throw new Error(data?.message || "Không thể xóa khỏi yêu thích");
+        }
+        setIsWishlisted(false);
+        toast.success("Đã xóa khỏi danh sách yêu thích");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Đã xảy ra lỗi khi xử lý yêu thích");
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
 
   /* =================== Render =================== */
   if (loading) {
@@ -603,9 +696,26 @@ export default function ProductDetail() {
                 >
                   Thêm vào giỏ
                 </button>
-                <button className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-gray-700 hover:bg-gray-50">
+                {/* <button className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-gray-700 hover:bg-gray-50">
                   <FiHeart /> Yêu thích
+                </button> */}
+                <button
+                  type="button"
+                  onClick={handleToggleWishlist}
+                  disabled={wishlistLoading}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium
+    ${isWishlisted ? "bg-red-50 border-red-200 text-red-600" : "text-gray-700 hover:bg-gray-50"}
+    ${wishlistLoading ? "opacity-70 cursor-not-allowed" : ""}
+  `}
+                >
+                  {isWishlisted ? (
+                    <FaHeart className="w-4 h-4" />
+                  ) : (
+                    <FiHeart className="w-4 h-4" />
+                  )}
+                  {isWishlisted ? "Đã yêu thích" : "Yêu thích"}
                 </button>
+
               </div>
             </div>
 

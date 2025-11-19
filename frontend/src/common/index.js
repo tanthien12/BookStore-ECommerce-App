@@ -87,6 +87,16 @@ const summaryApi = {
     addItem: "/flashsales/items",
     removeItem: (id) => `/flashsales/items/${id}`,
   },
+
+  // ====== Admin: Coupon (Mã giảm giá) ======
+  coupon: {
+    list: "/admin/coupons",
+    create: "/admin/coupons",
+    detail: (id) => `/admin/coupons/${id}`,
+    update: (id) => `/admin/coupons/${id}`,
+    delete: (id) => `/admin/coupons/${id}`,
+  },
+
   // ====== Order ======
   order: {
     list: "/orders",                // GET ?q=&status=&page=&limit=
@@ -94,6 +104,8 @@ const summaryApi = {
     create: "/orders",              // POST
     update: (id) => `/orders/${id}`,// PUT
     delete: (id) => `/orders/${id}`,// DELETE
+    // NEW: chỉ đổi trạng thái (PATCH)
+    updateStatus: (id) => `/orders/${id}/status`,
   },
 
   // ====== Cart ======

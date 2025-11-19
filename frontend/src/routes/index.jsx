@@ -42,6 +42,8 @@ import CheckoutSuccess from '../pages/CheckoutSuccess.jsx';
 import Checkout from '../pages/Checkout.jsx';
 import SearchResult from '../pages/SearchResult.jsx';
 import CheckoutFail from '../pages/CheckoutFail.jsx';
+import AdminCouponList from '../pages/admin/AdminCouponList.jsx';
+
 
 
 const router = createBrowserRouter([
@@ -145,6 +147,8 @@ const router = createBrowserRouter([
                     { path: "flashsales", element: <FlashsaleList /> },
                     { path: "flashsales-add", element: <AddFlashsale /> },
                     { path: "flashsales-edit/:id", element: <EditFlashsale /> },
+
+                    { path: 'coupons', element: <AdminCouponList /> },
 
                     // { path: "users", element: <UserList /> }, // /admin/users
                 ],

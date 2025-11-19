@@ -22,7 +22,9 @@ const adminDashboardCtrl = require("../controllers/admin.dashboard.controller");
 const AccountController = require("../controllers/account.controller");
 const AddressController = require("../controllers/address.controller");
 const WishlistController = require("../controllers/wishlist.controller");
-const VoucherController = require("../controllers/voucher.controller");
+// const VoucherController = require("../controllers/voucher.controller");
+
+const voucherController = require('../controllers/voucher.controller');
 
 
 const chatCtl = require("../controllers/chat.controller");
@@ -67,6 +69,8 @@ router.get("/orders/:id", orderController.detail);
 router.post("/orders", orderController.create);
 router.put("/orders/:id", orderController.update);
 router.delete("/orders/:id", orderController.remove);
+// NEW: Admin cập nhật trạng thái đơn hàng (state machine)
+router.patch("/orders/:id/status", requireAuth, requireRole("admin"), orderController.updateStatus);
 
 // ========== CART ==========
 router.get("/cart", requireAuth, cartController.list);             // GET /api/cart
@@ -74,6 +78,7 @@ router.post("/cart", requireAuth, cartController.add);             // POST /api/
 router.put("/cart/:id", requireAuth, cartController.update);       // PUT /api/cart/:id
 router.delete("/cart/:id", requireAuth, cartController.remove);    // DELETE /api/cart/:id
 router.delete("/cart", requireAuth, cartController.clear);         // DELETE /api/cart
+router.post("/cart/apply-coupon", requireAuth, voucherController.applyCoupon);
 
 // ========== BOOK ==========
 router.get("/books", bookController.list); // ?q=&page=&limit=&sort=newest
@@ -117,6 +122,24 @@ router.put('/admin/users/:id', adminUserCtrl.update);
 router.post('/admin/users/:id/reset-password', adminUserCtrl.resetPassword);
 router.post('/admin/users/bulk', adminUserCtrl.bulk);
 
+
+// ADMIN – Coupon CRUD
+router.get(
+    '/admin/coupons', requireAuth, requireRole('admin'), voucherController.adminListCoupons);
+
+router.post(
+    '/admin/coupons', requireAuth, requireRole('admin'), voucherController.adminCreateCoupon);
+
+router.get(
+    '/admin/coupons/:id', requireAuth, requireRole('admin'), voucherController.adminGetCoupon);
+
+router.put(
+    '/admin/coupons/:id', requireAuth, requireRole('admin'), voucherController.adminUpdateCoupon);
+
+router.delete(
+    '/admin/coupons/:id', requireAuth, requireRole('admin'), voucherController.adminDeleteCoupon);
+
+
 // ===== Admin: Roles =====
 // router.get('/admin/roles', requireAuth, requireRole('admin'), adminRoleCtrl.list);
 router.get('/admin/roles', adminRoleCtrl.list);
@@ -150,8 +173,10 @@ router.post('/me/wishlist/:bookId', requireAuth, WishlistController.add);
 router.delete('/me/wishlist/:bookId', requireAuth, WishlistController.remove);
 
 // Vouchers
-router.get('/me/vouchers', requireAuth, VoucherController.available); // đang hoạt động + hợp lệ
-router.get('/me/vouchers/used', requireAuth, VoucherController.used);  // đã dùng
+// router.get('/me/vouchers', requireAuth, voucherController.available); // đang hoạt động + hợp lệ
+// router.get('/me/vouchers/used', requireAuth, voucherController.used);  // đã dùng
+router.get(
+    '/me/vouchers', requireAuth, voucherController.listMyVouchers);
 
 // chatbot
 // ========== CHATBOT (Gemini + SSE) ==========

@@ -116,6 +116,7 @@ const summaryApi = {
     update: (id) => `/cart/${id}`, // PUT
     remove: (id) => `/cart/${id}`, // DELETE
     clear: "/cart",                // DELETE all
+    applyCoupon: "/cart/apply-coupon", // áp mã giảm giá cho cart hiện tại
   },
 
   // ====== Admin: Users ======

@@ -1,5 +1,5 @@
 // backend/controllers/voucher.controller.js
-const pool = require('../config/db.config'); // chỉnh path nếu khác
+const pool = require('../config/db.config'); // object có .query()
 const voucherService = require('../services/voucher.service');
 
 /**
@@ -43,90 +43,89 @@ async function applyCoupon(req, res, next) {
             return res.status(400).json({ ok: false, message: 'Vui lòng nhập mã giảm giá.' });
         }
 
-        const client = await pool.connect();
+        // ❌ BỎ HOÀN TOÀN pool.connect() / client.release()
+        // const client = await pool.connect();
 
-        try {
-            // Lấy cart "active" của user
-            const cartRes = await client.query(
-                `SELECT id
-         FROM bookstore.cart
-         WHERE user_id = $1 AND status = 'active'
-         LIMIT 1`,
-                [userId]
-            );
+        // Lấy cart "active" của user
+        const cartRes = await pool.query(
+            `SELECT id
+             FROM bookstore.cart
+             WHERE user_id = $1 AND status = 'active'
+             LIMIT 1`,
+            [userId]
+        );
 
-            if (cartRes.rowCount === 0) {
-                return res.status(400).json({
-                    ok: false,
-                    reason: 'NO_CART',
-                    message: 'Hiện tại giỏ hàng đang trống.',
-                });
-            }
-
-            const cartId = cartRes.rows[0].id;
-
-            // Tính subtotal từ cart_items
-            const subtotalRes = await client.query(
-                `SELECT COALESCE(SUM(ci.quantity * ci.price_snapshot), 0) AS subtotal
-         FROM bookstore.cart_items ci
-         WHERE ci.cart_id = $1`,
-                [cartId]
-            );
-
-            const subtotal = Number(subtotalRes.rows[0].subtotal || 0);
-
-            if (subtotal <= 0) {
-                return res.status(400).json({
-                    ok: false,
-                    reason: 'EMPTY_CART',
-                    message: 'Giỏ hàng hiện tại không có sản phẩm hợp lệ.',
-                });
-            }
-
-            const validation = await voucherService.validateCouponForOrder({
-                code,
-                userId,
-                subtotal,
-                now: new Date(),
-                client,
+        if (cartRes.rowCount === 0) {
+            return res.status(400).json({
+                ok: false,
+                reason: 'NO_CART',
+                message: 'Hiện tại giỏ hàng đang trống.',
             });
-
-            if (!validation.isValid) {
-                return res.status(400).json({
-                    ok: false,
-                    reason: validation.reason,
-                    message: reasonToMessage(validation.reason, validation.coupon, subtotal),
-                });
-            }
-
-            const { coupon, discountAmount } = validation;
-            const grandTotal = subtotal - discountAmount; // chưa tính phí ship vì còn tuỳ logic checkout của bạn
-
-            return res.json({
-                ok: true,
-                message: 'Áp dụng mã giảm giá thành công.',
-                subtotal,
-                discount: discountAmount,
-                grand_total: grandTotal,
-                coupon: {
-                    id: coupon.id,
-                    code: coupon.code,
-                    description: coupon.description,
-                    type: coupon.type,
-                    value: coupon.value,
-                    min_order_value: coupon.min_order_value,
-                    max_discount: coupon.max_discount,
-                    usage_limit: coupon.usage_limit,
-                    times_used: coupon.times_used,
-                    start_date: coupon.start_date,
-                    end_date: coupon.end_date,
-                    is_active: coupon.is_active,
-                },
-            });
-        } finally {
-            client.release();
         }
+
+        const cartId = cartRes.rows[0].id;
+
+        // Tính subtotal từ cart_items
+        const subtotalRes = await pool.query(
+            `SELECT COALESCE(SUM(ci.quantity * ci.price_snapshot), 0) AS subtotal
+             FROM bookstore.cart_items ci
+             WHERE ci.cart_id = $1`,
+            [cartId]
+        );
+
+        const subtotal = Number(subtotalRes.rows[0].subtotal || 0);
+
+        if (subtotal <= 0) {
+            return res.status(400).json({
+                ok: false,
+                reason: 'EMPTY_CART',
+                message: 'Giỏ hàng hiện tại không có sản phẩm hợp lệ.',
+            });
+        }
+
+        // Gọi service validate, DÙNG DEFAULT client = pool (không cần truyền client vào)
+        const validation = await voucherService.validateCouponForOrder({
+            code,
+            userId,
+            subtotal,
+            now: new Date(),
+            // client: pool, // không bắt buộc vì default đã là pool
+        });
+
+        if (!validation.isValid) {
+            return res.status(400).json({
+                ok: false,
+                reason: validation.reason,
+                message: reasonToMessage(validation.reason, validation.coupon, subtotal),
+            });
+        }
+
+        const { coupon, discountAmount } = validation;
+        const grandTotal = subtotal - discountAmount; // chưa tính phí ship
+
+        return res.json({
+            ok: true,
+            message: 'Áp dụng mã giảm giá thành công.',
+            subtotal,
+            discount: discountAmount,
+            grand_total: grandTotal,
+            coupon: {
+                id: coupon.id,
+                code: coupon.code,
+                description: coupon.description,
+                type: coupon.type,
+                value: coupon.value,
+                min_order_value: coupon.min_order_value,
+                max_discount: coupon.max_discount,
+                usage_limit: coupon.usage_limit,
+                times_used: coupon.times_used,
+                start_date: coupon.start_date,
+                end_date: coupon.end_date,
+                is_active: coupon.is_active,
+            },
+        });
     } catch (err) {
+        // Không còn client.release(), nên chỉ cần next(err)
         next(err);
     }
 }
@@ -222,24 +221,3 @@ module.exports = {
     adminDeleteCoupon,
     listMyVouchers,
 };
-
-
-// // backend/controllers/voucher.controller.js
-// const voucherService = require('../services/voucher.service');
-
-// exports.available = async (req, res, next) => {
-//     try {
-//         const userId = req.user.id;
-//         const { minOrderValue } = req.query;
-//         const items = await voucherService.available({ userId, minOrderValue });
-//         res.json({ success: true, items });
-//     } catch (e) { next(e); }
-// };
-
-// exports.used = async (req, res, next) => {
-//     try {
-//         const userId = req.user.id;
-//         const items = await voucherService.used(userId);
-//         res.json({ success: true, items });
-//     } catch (e) { next(e); }
-// };

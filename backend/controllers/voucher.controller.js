@@ -212,6 +212,24 @@ async function listMyVouchers(req, res, next) {
     }
 }
 
+async function listUsedVouchers(req, res, next) {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ ok: false, message: 'Bạn cần đăng nhập.' });
+        }
+
+        const vouchers = await voucherService.listUsedCouponsForUser(userId);
+
+        return res.json({
+            ok: true,
+            data: vouchers,
+        });
+    } catch (err) {
+        next(err);
+    }
+}
+
 module.exports = {
     applyCoupon,
     adminListCoupons,
@@ -220,4 +238,5 @@ module.exports = {
     adminUpdateCoupon,
     adminDeleteCoupon,
     listMyVouchers,
+    listUsedVouchers,
 };

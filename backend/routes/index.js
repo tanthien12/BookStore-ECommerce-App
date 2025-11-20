@@ -175,8 +175,18 @@ router.delete('/me/wishlist/:bookId', requireAuth, WishlistController.remove);
 // Vouchers
 // router.get('/me/vouchers', requireAuth, voucherController.available); // đang hoạt động + hợp lệ
 // router.get('/me/vouchers/used', requireAuth, voucherController.used);  // đã dùng
+// Vouchers
 router.get(
-    '/me/vouchers', requireAuth, voucherController.listMyVouchers);
+    '/me/vouchers',
+    requireAuth,
+    voucherController.listMyVouchers
+);
+
+router.get(
+    '/me/vouchers/used',
+    requireAuth,
+    voucherController.listUsedVouchers
+);
 
 // chatbot
 // ========== CHATBOT (Gemini + SSE) ==========

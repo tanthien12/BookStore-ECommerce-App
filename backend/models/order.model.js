@@ -22,7 +22,7 @@ function buildSet(fields) {
  */
 async function updateStockAndSoldCounters(client, items) {
     console.log("[StockUpdate] Bắt đầu trừ kho cho", items.length, "sản phẩm.");
-    
+
     for (const item of items) {
         const { book_id, quantity } = item;
         if (!quantity || !book_id) continue;
@@ -91,7 +91,7 @@ const OrderModel = {
             RETURNING *;
             `;
             // ⬆️ KẾT THÚC SỬA LỖI CÚ PHÁP SQL ⬆️
-            
+
             const oRes = await client.query(insertOrderSql, [
                 order.user_id,
                 order.status,
@@ -199,7 +199,7 @@ const OrderModel = {
             client.release();
         }
     },
-    
+
     // ... (Các hàm còn lại: remove, findById, list, listByUser, findMineById, cancelMine giữ nguyên) ...
 
     async remove(id) {
@@ -207,12 +207,41 @@ const OrderModel = {
         return res.rowCount > 0;
     },
 
+    // async findById(id) {
+    //     const oRes = await pool.query(
+    //         `SELECT o.*
+    //    FROM "order" o
+    //    WHERE o.id = $1
+    //    LIMIT 1`,
+    //         [id]
+    //     );
+    //     const order = oRes.rows[0];
+    //     if (!order) return null;
+
+    //     const itemsRes = await pool.query(
+    //         `SELECT od.book_id, od.quantity, od.price_snapshot, b.title, b.image_url
+    //    FROM order_details od
+    //    JOIN book b ON b.id = od.book_id
+    //    WHERE od.order_id = $1
+    //    ORDER BY od.id`,
+    //         [id]
+    //     );
+
+    //     return { ...order, items: itemsRes.rows };
+    // },
+
     async findById(id) {
         const oRes = await pool.query(
-            `SELECT o.*
-       FROM "order" o
-       WHERE o.id = $1
-       LIMIT 1`,
+            `SELECT 
+       o.*,
+       p.method  AS payment_method,
+       p.status  AS payment_status,
+       p.transaction_id,
+       p.paid_at
+     FROM "order" o
+     LEFT JOIN bookstore.payment p ON p.order_id = o.id
+     WHERE o.id = $1
+     LIMIT 1`,
             [id]
         );
         const order = oRes.rows[0];

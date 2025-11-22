@@ -1,12 +1,13 @@
-import { createBrowserRouter } from 'react-router-dom';
 import React from 'react';
+import { createBrowserRouter } from 'react-router-dom';
 import App from '../App.jsx';
 import Home from '../pages/Home.jsx';
 import Login from '../pages/Login.jsx';
 import Register from '../pages/Register.jsx';
 import ForgotPassword from '../pages/ForgotPassword.jsx';
 import AuthRecover from '../pages/AuthRecover.jsx';
-import AdminLayout from '../pages/admin/AdminLayout.jsx';
+// import AdminLayout from '../pages/admin/AdminLayout.jsx';
+import AdminRoute from './AdminRoute.jsx';
 import ProductList from '../pages/admin/ProductList.jsx';
 import CategoryList from '../pages/admin/CategoryList.jsx';
 import OrderList from '../pages/admin/OrderList.jsx';
@@ -124,7 +125,8 @@ const router = createBrowserRouter([
             // ========== Admin Routes ==========
             {
                 path: "admin",
-                element: <AdminLayout />,
+                // element: <AdminLayout />,
+                element: <AdminRoute />,
                 children: [
                     { index: true, element: <DashboardAdmin /> }, // /admin
                     { path: "products", element: <ProductList /> }, // /admin/products

@@ -44,7 +44,7 @@ export default function CheckoutSuccess() {
     <div className="bg-gray-50 min-h-[calc(100vh-200px)] py-10 px-4">
       {/* ✅ [MỚI] Thiết kế lại thành dạng Card (Thẻ) */}
       <div className="mx-auto max-w-lg rounded-xl border bg-white p-6 text-center shadow-lg md:p-8">
-        
+
         {/* ✅ [MỚI] Thêm Icon */}
         <div className="flex justify-center">
           <CheckIcon />
@@ -103,7 +103,7 @@ export default function CheckoutSuccess() {
         {/* ✅ [MỚI] Thiết kế lại nút bấm, thêm w-full cho rõ ràng */}
         <div className="mt-8 flex flex-col items-center gap-4">
           <Link
-            to="/orders"
+            to="/account/orders"
             className="w-full rounded-lg bg-gray-800 px-5 py-3 text-white font-semibold hover:bg-black transition text-center"
           >
             Xem đơn hàng của tôi

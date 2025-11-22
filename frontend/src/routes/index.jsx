@@ -44,6 +44,9 @@ import Checkout from '../pages/Checkout.jsx';
 import SearchResult from '../pages/SearchResult.jsx';
 import CheckoutFail from '../pages/CheckoutFail.jsx';
 import AdminCouponList from '../pages/admin/AdminCouponList.jsx';
+import AddVoucher from '../pages/admin/AddVoucher.jsx';
+import EditVoucher from '../pages/admin/EditVoucher.jsx';
+import VoucherList from '../pages/admin/VoucherList.jsx';
 
 
 
@@ -145,12 +148,17 @@ const router = createBrowserRouter([
                     { path: "users", element: <UserList /> }, // /admin/users
                     { path: "users-add", element: <AddUser /> }, // /admin/users-add
                     { path: "users-edit/:id", element: <EditUser /> }, // /admin/users-edit/:id
-                    
+
                     { path: "flashsales", element: <FlashsaleList /> },
                     { path: "flashsales-add", element: <AddFlashsale /> },
                     { path: "flashsales-edit/:id", element: <EditFlashsale /> },
 
                     { path: 'coupons', element: <AdminCouponList /> },
+                    { path: "vouchers", element: <VoucherList /> },
+                    { path: "vouchers-add", element: <AddVoucher /> },
+                    { path: "vouchers-edit/:id", element: <EditVoucher /> },
+
+
 
                     // { path: "users", element: <UserList /> }, // /admin/users
                 ],

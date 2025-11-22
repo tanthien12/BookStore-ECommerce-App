@@ -19,7 +19,8 @@ const menuItems = [
     { name: "Orders", path: "/admin/orders", icon: <MdShoppingCart size={20} /> },
     { name: "Flash Sale", path: "/admin/flashsales", icon: <MdFlashOn size={20} /> },
     // 👇 Mục mới: Mã giảm giá
-    { name: "Mã giảm giá", path: "/admin/coupons", icon: <FaTicketAlt size={20} /> },
+    // { name: "Mã giảm giá", path: "/admin/coupons", icon: <FaTicketAlt size={20} /> },
+    { name: "Mã giảm giá", path: "/admin/vouchers", icon: <FaTicketAlt size={20} /> },
     { name: "Users", path: "/admin/users", icon: <MdPeople size={20} /> },
 ];
 

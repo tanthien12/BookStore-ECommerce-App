@@ -93,7 +93,7 @@ const getStoredUser = () => {
       if (!raw) continue;
       const obj = JSON.parse(typeof raw === "string" ? raw : String(raw));
       if (obj && typeof obj === "object") return obj;
-    } catch {}
+    } catch { }
   }
   return null;
 };
@@ -150,9 +150,8 @@ const NavIcon = memo(({ icon: Icon, label, onClick, badge, active }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`relative inline-flex flex-col items-center gap-1 text-[13px] md:text-sm transition-colors ${
-      active ? "text-red-600" : "text-gray-600 hover:text-red-600"
-    }`}
+    className={`relative inline-flex flex-col items-center gap-1 text-[13px] md:text-sm transition-colors ${active ? "text-red-600" : "text-gray-600 hover:text-red-600"
+      }`}
     aria-label={label}
   >
     <span className="relative">
@@ -204,7 +203,7 @@ const AccountPopover = ({ open, onClose, mode = "guest", user }) => {
       let data = { success: false };
       try {
         data = await res.json();
-      } catch {}
+      } catch { }
       ["access_token", "refresh_token", "token", "user", "profile", "account"].forEach(
         (k) => localStorage.removeItem(k)
       );
@@ -293,7 +292,7 @@ const AccountPopover = ({ open, onClose, mode = "guest", user }) => {
             </li>
             <li>
               <Link
-                to="/orders"
+                to="/account/orders"
                 onClick={onClose}
                 className="block rounded-lg px-3 py-2 hover:bg-gray-50"
               >
@@ -302,7 +301,7 @@ const AccountPopover = ({ open, onClose, mode = "guest", user }) => {
             </li>
             <li>
               <Link
-                to="/wishlist"
+                to="/account/wishlist"
                 onClick={onClose}
                 className="block rounded-lg px-3 py-2 hover:bg-gray-50"
               >
@@ -311,7 +310,7 @@ const AccountPopover = ({ open, onClose, mode = "guest", user }) => {
             </li>
             <li>
               <Link
-                to="/addresses"
+                to="/account/addresses"
                 onClick={onClose}
                 className="block rounded-lg px-3 py-2 hover:bg-gray-50"
               >
@@ -320,7 +319,7 @@ const AccountPopover = ({ open, onClose, mode = "guest", user }) => {
             </li>
             <li>
               <Link
-                to="/vouchers"
+                to="/account/vouchers"
                 onClick={onClose}
                 className="block rounded-lg px-3 py-2 hover:bg-gray-50"
               >
@@ -329,7 +328,7 @@ const AccountPopover = ({ open, onClose, mode = "guest", user }) => {
             </li>
             <li>
               <Link
-                to="/change-password"
+                to="/account/security"
                 onClick={onClose}
                 className="block rounded-lg px-3 py-2 hover:bg-gray-50"
               >
@@ -396,15 +395,6 @@ const AccountPopover = ({ open, onClose, mode = "guest", user }) => {
               </Link>
             </li>
             <li>
-              <Link
-                to="/admin/settings"
-                onClick={onClose}
-                className="block rounded-lg px-3 py-2 hover:bg-gray-50"
-              >
-                Cấu hình hệ thống
-              </Link>
-            </li>
-            <li>
               <button
                 type="button"
                 onClick={handleLogout}
@@ -452,11 +442,10 @@ const LanguageDropdown = ({ open, onToggle, onChange, value = "vi" }) => (
               role="option"
               aria-selected={value === opt.code}
               onClick={() => onChange?.(opt.code)}
-              className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-                value === opt.code
-                  ? "text-red-600 font-medium"
-                  : "text-gray-700"
-              }`}
+              className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${value === opt.code
+                ? "text-red-600 font-medium"
+                : "text-gray-700"
+                }`}
             >
               {opt.label}
             </button>
@@ -573,9 +562,8 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
 
   return (
     <header
-      className={`sticky top-0 z-50 bg-white ${
-        shadow ? "shadow-sm" : ""
-      }`}
+      className={`sticky top-0 z-50 bg-white ${shadow ? "shadow-sm" : ""
+        }`}
     >
       {/* Top promo */}
       <div className="hidden md:block bg-gradient-to-r from-red-600 via-rose-600 to-fuchsia-600 text-white">
@@ -653,8 +641,8 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
                     !isAuthenticated
                       ? "guest"
                       : isAdmin
-                      ? "admin"
-                      : "user"
+                        ? "admin"
+                        : "user"
                   }
                   user={stored || undefined}
                 />

@@ -1,421 +1,239 @@
 import React, { useMemo, useState, useEffect, memo } from "react";
-
 import { Link } from "react-router-dom";
-
-import useCategories from "../../hooks/useCategories";
-
-
-
-/* --- 1. IMPORT REACT ICONS --- */
-
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa6";
-
 import { BiCategory } from "react-icons/bi";
 
+// Import hook logic (đảm bảo đường dẫn đúng với cấu trúc dự án của bạn)
+import useCategories from "../../hooks/useCategories";
 
-
-/* --- 2. HELPER FUNCTIONS --- */
-
+/* --- 1. HELPER FUNCTIONS --- */
 function slugify(text) {
-
   if (!text) return "";
-
   return String(text)
-
     .toLowerCase()
-
     .normalize("NFD")
-
     .replace(/[\u0300-\u036f]/g, "")
-
     .replace(/[^a-z0-9\s-]/g, "")
-
     .trim()
-
     .replace(/\s+/g, "-")
-
     .replace(/-+/g, "-");
-
 }
 
-
-
-/* Hook tính toán số item để luôn hiển thị 1 dòng */
-
+/* --- 2. CUSTOM HOOK: useItemsPerRow (Đã tối ưu Performance) --- */
 function useItemsPerRow() {
+  // Lazy Initialization: Tính toán ngay lần đầu để tránh layout shift
+  const getItemsCount = () => {
+    if (typeof window === 'undefined') return 10; // Mặc định cho Server
+    const width = window.innerWidth;
+    if (width < 640) return 4;
+    if (width < 768) return 5;
+    if (width < 1024) return 6;
+    if (width < 1280) return 8;
+    return 10;
+  };
 
-  const [itemsPerRow, setItemsPerRow] = useState(10); // Desktop mặc định
-
-
+  const [itemsPerRow, setItemsPerRow] = useState(getItemsCount);
 
   useEffect(() => {
+    let timeoutId = null;
 
-    function handleResize() {
-
-      const width = window.innerWidth;
-
-      // Tinh chỉnh số lượng item để vừa khít 1 dòng trên từng màn hình
-
-      if (width < 640) setItemsPerRow(4);       // Mobile: 4 item
-
-      else if (width < 768) setItemsPerRow(5);  // Mobile to: 5 item
-
-      else if (width < 1024) setItemsPerRow(6); // Tablet: 6 item
-
-      else if (width < 1280) setItemsPerRow(8); // Laptop nhỏ: 8 item
-
-      else setItemsPerRow(10);                  // Desktop lớn: 10 item
-
-    }
-
-
-
-    handleResize();
+    const handleResize = () => {
+      // Debounce: Chỉ tính toán lại sau khi người dùng dừng kéo 200ms
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setItemsPerRow(getItemsCount());
+      }, 200);
+    };
 
     window.addEventListener("resize", handleResize);
-
-    return () => window.removeEventListener("resize", handleResize);
-
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
-
-
   return itemsPerRow;
-
 }
 
-
-
-/* --- 3. CATEGORY ITEM --- */
-
+/* --- 3. COMPONENT: CategoryItem (Đã Fix lỗi ảnh lặp vô tận) --- */
 const CategoryItem = memo(({ data }) => {
-
   const rawSlug = data?.slug || (data?.name ? slugify(data.name) : "") || String(data?.id) || "unknown";
-
   const to = `/category/${encodeURIComponent(rawSlug)}`;
 
+  // Đường dẫn ảnh dự phòng
   const PLACEHOLDER = "/images/placeholders/category.png";
 
-
+  // Hàm xử lý lỗi ảnh quan trọng
+  const handleImageError = (e) => {
+    const target = e.currentTarget;
+    // Nếu src hiện tại đã chứa placeholder (nghĩa là đã lỗi 1 lần rồi) -> Dừng ngay để tránh vòng lặp
+    if (target.src.includes("placeholders/category.png")) {
+      target.onerror = null;
+      return;
+    }
+    // Gán ảnh placeholder nếu ảnh gốc lỗi
+    target.onerror = null;
+    target.src = PLACEHOLDER;
+  };
 
   return (
-
     <Link
-
       to={to}
-
       className="group flex flex-col items-center text-center p-2 rounded-lg transition-all duration-300 hover:bg-gray-50"
-
       title={data?.name}
-
     >
-
-      {/* Khung ảnh: Vuông vức, bo góc */}
-
+      {/* Khung ảnh */}
       <div className="
-
         relative w-full aspect-square mb-2 
-
         overflow-hidden rounded-xl 
-
         bg-white border border-gray-100 shadow-sm 
-
         transition-all duration-300 
-
         group-hover:shadow-md group-hover:border-red-200
-
       ">
-
         <img
-
           src={data?.image_url || PLACEHOLDER}
-
           alt={data?.name || "Category"}
-
           loading="lazy"
-
           className="h-full w-full object-contain p-2 transition-transform duration-500 group-hover:scale-110"
-
-          onError={(e) => {
-
-            e.currentTarget.onerror = null;
-
-            e.currentTarget.src = PLACEHOLDER;
-
-          }}
-
+          onError={handleImageError} // Gọi hàm xử lý lỗi tại đây
         />
-
       </div>
-
-
 
       {/* Tên danh mục */}
-
       <div className="w-full">
-
         <span className="
-
           block text-[12px] md:text-[13px] font-semibold 
-
           leading-tight text-gray-700 
-
           line-clamp-2 transition-colors group-hover:text-red-600
-
         ">
-
           {data?.name || "Danh mục"}
-
         </span>
-
       </div>
-
     </Link>
-
   );
-
 });
 
-
-
-/* --- 4. MAIN COMPONENT --- */
-
+/* --- 4. MAIN COMPONENT: CategorySection --- */
 export default function CategorySection() {
-
   const { categories, loading } = useCategories();
-
-
-
   const itemsPerRow = useItemsPerRow();
 
-
-
+  // Chia danh sách thành các trang (chunks)
   const slides = useMemo(() => {
-
     const list = Array.isArray(categories) ? categories : [];
+    if (list.length === 0) return [];
 
     const chunks = [];
-
     for (let i = 0; i < list.length; i += itemsPerRow) {
-
       chunks.push(list.slice(i, i + itemsPerRow));
-
     }
-
     return chunks;
-
   }, [categories, itemsPerRow]);
 
-
-
   const [index, setIndex] = useState(0);
-
   const total = slides.length || 1;
 
-
-
+  // Reset về trang đầu khi số lượng item/dòng thay đổi
   useEffect(() => {
-
     setIndex(0);
-
   }, [itemsPerRow]);
 
-
-
-  // CSS Class cho nút điều hướng (Đã chỉnh sửa: Bỏ nền tròn, bỏ border)
-
-  const navBtnClass = `
-
+  // CSS Class cho nút điều hướng
+  // Thêm 'pointer-events-none' để không bấm được khi nút ẩn
+  const getNavBtnClass = (isHidden) => `
     absolute top-1/2 -translate-y-1/2 z-20
-
     w-10 h-10 flex items-center justify-center
-
     text-gray-400 hover:text-gray-900 
-
     transition-all duration-300 hover:scale-125
-
-    disabled:opacity-0 disabled:cursor-default cursor-pointer
-
+    cursor-pointer
+    ${isHidden ? "opacity-0 pointer-events-none" : "opacity-100"}
   `;
 
-
-
   return (
-
     <section className="mt-8 select-none">
-
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
 
-
-
         {/* --- HEADER --- */}
-
         <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b-2 border-gray-100 bg-gray-50/30">
-
           <div className="flex items-center gap-3">
-
-            {/* Đã chỉnh: Icon màu đen (text-gray-800) và to hơn (text-3xl) */}
-
             <BiCategory className="text-gray-800 text-3xl" />
-
             <h2 className="text-lg font-bold text-gray-800 uppercase tracking-wide">
-
               Danh mục sản phẩm
-
             </h2>
-
           </div>
-
         </div>
-
-
 
         {/* --- SLIDER BODY --- */}
-
         <div className="relative group/slider px-2 md:px-4 py-4">
 
-
-
           {/* Nút Previous */}
-
           {total > 1 && (
-
             <button
-
-              onClick={() => setIndex((prev) => (prev - 1 + total) % total)}
-
-              // Chỉnh margin âm (-ml-3) để icon nằm sát mép hơn
-
-              className={`${navBtnClass} left-0 -ml-2 md:ml-0 ${index === 0 ? "opacity-0 md:group-hover/slider:opacity-100" : "opacity-100"}`}
-
+              onClick={() => setIndex((prev) => Math.max(0, prev - 1))}
+              disabled={index === 0}
+              className={`${getNavBtnClass(index === 0)} left-0 -ml-2 md:ml-0`}
               aria-label="Previous"
-
             >
-
-              {/* Tăng size icon lên 24 cho rõ ràng */}
-
               <FaChevronLeft size={24} />
-
             </button>
-
           )}
-
-
 
           {/* Nút Next */}
-
           {total > 1 && (
-
             <button
-
-              onClick={() => setIndex((prev) => (prev + 1) % total)}
-
-              // Chỉnh margin âm (-mr-3) để icon nằm sát mép hơn
-
-              className={`${navBtnClass} right-0 -mr-2 md:mr-0 ${index === total - 1 ? "opacity-0 md:group-hover/slider:opacity-100" : "opacity-100"}`}
-
+              onClick={() => setIndex((prev) => Math.min(total - 1, prev + 1))}
+              disabled={index === total - 1}
+              className={`${getNavBtnClass(index === total - 1)} right-0 -mr-2 md:mr-0`}
               aria-label="Next"
-
             >
-
-              {/* Tăng size icon lên 24 cho rõ ràng */}
-
               <FaChevronRight size={24} />
-
             </button>
-
           )}
-
-
 
           {loading ? (
-
             // Skeleton Loading
-
             <div
-
               className="grid gap-2 w-full animate-pulse"
-
               style={{ gridTemplateColumns: `repeat(${itemsPerRow}, minmax(0, 1fr))` }}
-
             >
-
               {Array.from({ length: itemsPerRow }).map((_, i) => (
-
                 <div key={i} className="flex flex-col items-center space-y-2 p-2">
-
                   <div className="w-full aspect-square rounded-xl bg-gray-200" />
-
                   <div className="h-3 w-16 bg-gray-200 rounded-full" />
-
                 </div>
-
               ))}
-
             </div>
-
           ) : slides.length === 0 ? (
-
             <div className="py-8 text-center text-gray-400">Chưa có danh mục.</div>
-
           ) : (
-
             <div className="overflow-hidden px-1">
-
               <div
-
                 className="flex transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]"
-
                 style={{
-
                   width: `${100 * total}%`,
-
                   transform: `translateX(-${(100 / total) * index}%)`,
-
                 }}
-
               >
-
                 {slides.map((slide, sIdx) => (
-
                   <div key={sIdx} className="px-1" style={{ width: `${100 / total}%` }}>
-
-                    {/* Grid items */}
-
                     <div
-
                       className="grid gap-2 md:gap-4 w-full"
-
                       style={{ gridTemplateColumns: `repeat(${itemsPerRow}, minmax(0, 1fr))` }}
-
                     >
-
                       {slide.map((c, i) => (
-
-                        <CategoryItem key={c.id || i} data={c} />
-
+                        // Ưu tiên dùng id làm key, nếu không có mới dùng index
+                        <CategoryItem key={c.id || `idx-${i}`} data={c} />
                       ))}
-
                     </div>
-
                   </div>
-
                 ))}
-
               </div>
-
             </div>
-
           )}
-
         </div>
-
       </div>
-
     </section>
-
   );
-
 }
 
 // import React, { useMemo, useState, useEffect } from "react";

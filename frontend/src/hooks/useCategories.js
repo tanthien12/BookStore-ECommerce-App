@@ -1,36 +1,27 @@
 import { useEffect, useState } from "react";
-import summaryApi from "../common";
+import summaryApi from "../common"; // Đảm bảo đường dẫn import đúng
 
 export default function useCategories() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let active = true;
+    let active = true; // Cờ để tránh set state khi component đã unmount
 
     async function fetchCategories() {
       try {
         const res = await fetch(summaryApi.url("/categories"));
 
-        // FIX LỖI: Fetch không tự throw lỗi khi gặp 404/500, phải check thủ công
+        // Kiểm tra HTTP Status
         if (!res.ok) {
           throw new Error(`HTTP Error! Status: ${res.status}`);
         }
 
-        // Cố gắng parse JSON
-        let json = null;
-        try {
-          json = await res.json();
-        } catch (parseErr) {
-          console.error("Lỗi parse JSON:", parseErr);
-          // Nếu parse lỗi thì dừng luôn, không xử lý tiếp
-          if (active) setCategories([]);
-          return;
-        }
+        const json = await res.json();
 
         if (!active) return;
 
-        // Xử lý các định dạng dữ liệu trả về khác nhau
+        // Chuẩn hóa dữ liệu đầu ra từ API
         let list = [];
         if (Array.isArray(json)) {
           list = json;

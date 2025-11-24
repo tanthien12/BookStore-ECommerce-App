@@ -8,6 +8,8 @@ import useVNAddress from "../hooks/useVNAddress";
 import summaryApi, { authHeaders } from "../common";
 import { FaTicketAlt } from "react-icons/fa";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+
 // Lấy user từ localStorage (backend auth sau này có thể thay bằng /me)
 const getUserFromStorage = () => {
   try {
@@ -459,7 +461,7 @@ export default function Checkout() {
       // VNPay
       if (form.payment === "vnpay") {
         const res = await fetch(
-          "http://localhost:4000/api/vnpay/create-payment-url",
+          `${API_BASE}/vnpay/create-payment-url`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -632,8 +634,8 @@ export default function Checkout() {
                 onClick={() => applyCouponByCode(coupon)}
                 disabled={applyingCoupon}
                 className={`px-5 py-2 text-sm font-medium text-white ${applyingCoupon
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-500 hover:bg-blue-600"
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-500 hover:bg-blue-600"
                   }`}
               >
                 Áp dụng

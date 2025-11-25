@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useSelector } from "react-redux"; 
+import { useSelector, useDispatch } from "react-redux"; 
 import { toast } from "react-toastify";
 import moment from "moment";
 import "moment/locale/vi";
 import { FiSend, FiTrash2, FiMessageSquare } from "react-icons/fi"; 
 import summaryApi, { authHeaders } from "../../common";
+import { setUserDetails } from "../../store/userSlice"; 
 
-// Hàm giải mã Token (JWT) để lấy thông tin user ngay lập tức
 function parseJwt(token) {
+    if (!token) return null;
     try {
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -22,83 +23,87 @@ function parseJwt(token) {
 }
 
 export default function PostComments({ postId }) {
+  const dispatch = useDispatch();
   const [comments, setComments] = useState([]);
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   
-  // State cho phần Reply
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyContent, setReplyContent] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
 
-  // 1. Lấy user từ Redux (Ưu tiên 1)
   const reduxUser = useSelector((state) => state.user?.data);
-  
-  // 2. Lấy token và giải mã User từ Token (Phương án dự phòng khi Redux null)
   const token = localStorage.getItem("access_token") || localStorage.getItem("token");
-  
-  // User gộp: Nếu Redux có thì dùng Redux, nếu không thì dùng thông tin từ Token
+
+  // Tự động lấy thông tin user nếu thiếu
+  useEffect(() => {
+    if (token && !reduxUser) {
+        fetch(summaryApi.url(summaryApi.auth.me), {
+            method: 'GET',
+            headers: authHeaders()
+        })
+        .then(res => res.json())
+        .then(json => {
+            if (json.success) {
+                dispatch(setUserDetails(json.data));
+            }
+        })
+        .catch(err => console.log("Silent fetch user failed", err));
+    }
+  }, [token, reduxUser, dispatch]);
+
+  // Tính toán user hiện tại (kết hợp Token và Redux)
   const effectiveUser = useMemo(() => {
-    if (reduxUser) return reduxUser;
+    if (reduxUser) {
+        return {
+            ...reduxUser,
+            displayName: reduxUser.name || "User"
+        };
+    }
+    
     if (token) {
         const decoded = parseJwt(token);
         if (decoded) {
-            // Token thường chứa: { sub: userId, role: "admin", email: ... }
             return {
                 id: decoded.sub || decoded.id,
-                role: decoded.role,
-                // Các trường khác giả lập để không bị lỗi
-                name: decoded.name || "User",
-                avatar_url: null 
+                role: decoded.role, 
+                displayName: decoded.name || "User",
+                isTemp: true 
             };
         }
     }
     return null;
   }, [reduxUser, token]);
 
-  const isLoggedIn = !!effectiveUser; // Có user (từ nguồn nào cũng được) là đã đăng nhập
+  const isLoggedIn = !!effectiveUser;
 
-  // --- LOGIC CHECK ADMIN (Cập nhật: Hỗ trợ cả Redux User và Token User) ---
+  // Check quyền Admin
   const isAdmin = (() => {
     if (!effectiveUser) return false;
     
-    // Log để kiểm tra xem đang dùng user từ nguồn nào
-    // console.log("Current User Source:", effectiveUser);
-
-    // Xử lý trường hợp object lồng nhau (nếu có)
     const userReal = effectiveUser.user || effectiveUser; 
-    
-    // Lấy role từ nhiều nguồn có thể
     const roleObj = userReal.role;
+
     let roleSlug = "";
     let roleId = 0;
 
     if (typeof roleObj === 'object' && roleObj !== null) {
-        // Redux thường trả về object: { id, name, slug }
         roleSlug = (roleObj.slug || roleObj.name || "").toLowerCase();
         roleId = Number(roleObj.id);
     } else {
-        // Token thường trả về string: "admin"
-        // Hoặc Redux trả về string role_slug
         roleSlug = String(roleObj || userReal.role_slug || userReal.role_name || "").toLowerCase();
         roleId = Number(userReal.role_id);
     }
 
     const validRoles = ["admin", "quản trị viên", "super_admin", "manager", "root"];
-    
-    // Check theo tên
     if (validRoles.includes(roleSlug)) return true;
-    
-    // Check theo ID
     if (roleId === 1) return true;
 
     return false;
   })();
-  // -------------------------------------------------------------
 
   moment.locale('vi');
 
-  // Load comments
   useEffect(() => {
     if (!postId) return;
     const fetchComments = async () => {
@@ -111,11 +116,10 @@ export default function PostComments({ postId }) {
     fetchComments();
   }, [postId]);
 
-  // Gửi comment gốc
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!content.trim()) return;
-    if (!isLoggedIn) return toast.info("Vui lòng đăng nhập để bình luận");
+    if (!isLoggedIn) return toast.info("Vui lòng đăng nhập");
 
     setSubmitting(true);
     try {
@@ -137,11 +141,10 @@ export default function PostComments({ postId }) {
     finally { setSubmitting(false); }
   };
 
-  // Gửi Reply
   const handleReplySubmit = async (e, parentId) => {
     e.preventDefault();
     if (!replyContent.trim()) return;
-    if (!isLoggedIn) return toast.info("Vui lòng đăng nhập để trả lời");
+    if (!isLoggedIn) return toast.info("Vui lòng đăng nhập");
 
     setReplySubmitting(true);
     try {
@@ -164,9 +167,8 @@ export default function PostComments({ postId }) {
     finally { setReplySubmitting(false); }
   };
 
-  // Xóa comment
   const handleDelete = async (id) => {
-    if (!confirm("Bạn có chắc muốn xóa bình luận này?")) return;
+    if (!confirm("Xóa bình luận này?")) return;
     try {
       const res = await fetch(summaryApi.url(summaryApi.postComments.delete(id)), {
         method: "DELETE", headers: authHeaders()
@@ -189,19 +191,16 @@ export default function PostComments({ postId }) {
   };
 
   const CommentItem = ({ comment, isReply = false }) => {
-    // Check quyền sở hữu: So sánh ID từ effectiveUser (có thể là sub từ token hoặc id từ redux)
     const currentUserId = effectiveUser ? (effectiveUser.id || effectiveUser.sub) : null;
-    
-    // Ép kiểu String để so sánh an toàn
     const isOwner = currentUserId && (String(currentUserId) === String(comment.user_id));
-    
-    // Nút Xóa hiện khi: Là chủ sở hữu HOẶC Là Admin
     const canDelete = isOwner || isAdmin;
+
+    const commentAvatar = comment.user_avatar || `https://ui-avatars.com/api/?name=${comment.user_name || "User"}&background=random`;
 
     return (
       <div className={`flex gap-3 group ${isReply ? "mt-4" : "mt-6"}`}>
         <img 
-            src={comment.user_avatar || `https://ui-avatars.com/api/?name=${comment.user_name || "User"}&background=random`} 
+            src={commentAvatar} 
             className={`${isReply ? "w-8 h-8" : "w-10 h-10"} rounded-full object-cover shrink-0 border border-gray-100`}
             alt={comment.user_name}
         />
@@ -209,9 +208,7 @@ export default function PostComments({ postId }) {
         <div className="flex-1">
             <div className={`bg-gray-50 p-3 rounded-2xl rounded-tl-none ${isReply ? "bg-gray-100" : ""}`}>
                 <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-gray-900 text-sm">
-                        {comment.user_name}
-                    </span>
+                    <span className="font-bold text-gray-900 text-sm">{comment.user_name}</span>
                     <span className="text-xs text-gray-400">{moment(comment.created_at).fromNow()}</span>
                 </div>
                 <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
@@ -229,7 +226,6 @@ export default function PostComments({ postId }) {
                         Trả lời
                     </button>
                 )}
-
                 {canDelete && (
                     <button 
                         onClick={() => handleDelete(comment.id)} 
@@ -240,15 +236,9 @@ export default function PostComments({ postId }) {
                 )}
             </div>
 
-            {/* Form Reply */}
             {replyingTo === comment.id && (
-                <div className="mt-3 flex gap-3 animate-fade-in-down">
-                    <img 
-                        src={effectiveUser?.avatar_url || `https://ui-avatars.com/api/?name=${effectiveUser?.name || "Me"}&background=random`} 
-                        className="w-8 h-8 rounded-full opacity-50" 
-                        alt="me"
-                    />
-                    <form onSubmit={(e) => handleReplySubmit(e, comment.id)} className="flex-1 relative">
+                <div className="mt-3 animate-fade-in-down">
+                    <form onSubmit={(e) => handleReplySubmit(e, comment.id)} className="relative">
                         <textarea
                              autoFocus
                              value={replyContent}
@@ -256,11 +246,7 @@ export default function PostComments({ postId }) {
                              placeholder={`Trả lời ${comment.user_name}...`}
                              className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none min-h-[60px] pr-12"
                         />
-                        <button 
-                            type="submit"
-                            disabled={replySubmitting || !replyContent.trim()} 
-                            className="absolute bottom-3 right-3 text-blue-600 hover:text-blue-800 disabled:opacity-30"
-                        >
+                        <button type="submit" className="absolute bottom-3 right-3 text-blue-600">
                             <FiSend />
                         </button>
                     </form>
@@ -277,28 +263,14 @@ export default function PostComments({ postId }) {
         <FiMessageSquare /> Bình luận ({comments.length})
       </h3>
 
-      {/* --- DEBUG PANEL (Sẽ tự hiển thị thông tin chính xác) --- */}
-      <div className="bg-black text-white p-4 text-xs rounded mb-4 overflow-auto max-h-40 font-mono hidden">
-        <p className="font-bold text-yellow-400">--- DEBUG INFO ---</p>
-        <p>Is Logged In: {isLoggedIn ? "YES" : "NO"}</p>
-        <p>Is Admin: {isAdmin ? "TRUE" : "FALSE"}</p>
-        <p>User Source: {reduxUser ? "REDUX" : (token ? "TOKEN" : "NONE")}</p>
-        <pre>{JSON.stringify(effectiveUser, null, 2)}</pre>
-      </div>
-
-      {/* Form nhập liệu gốc */}
       <div className="mb-10">
         {isLoggedIn ? (
-            <form onSubmit={handleSubmit} className="flex gap-4 items-start">
-                <img 
-                    src={effectiveUser?.avatar_url || `https://ui-avatars.com/api/?name=${effectiveUser?.name || "User"}&background=random`} 
-                    className="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm"
-                    alt="avatar"
-                />
-                <div className="flex-1">
+            <form onSubmit={handleSubmit}>
+                <div>
                     <textarea 
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
+                        // Đổi placeholder cố định, không phụ thuộc loading nữa
                         placeholder="Chia sẻ suy nghĩ của bạn..."
                         className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px] text-sm resize-none shadow-sm"
                     />

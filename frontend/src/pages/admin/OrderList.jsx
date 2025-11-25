@@ -1,3 +1,4 @@
+// src/pages/admin/OrderList.jsx
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -813,7 +814,7 @@ export default function OrderList() {
                                     return (
                                         <tr
                                             key={order.id}
-                                            className="hover:bg-gray-50"
+                                            className="hover:bg-gray-50 border-b border-gray-400"
                                         >
                                             <td className="w-12 p-0">
                                                 <div className="flex h-16 items-center justify-center">

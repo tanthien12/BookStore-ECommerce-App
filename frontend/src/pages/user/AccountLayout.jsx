@@ -15,7 +15,7 @@ const menu = [
     { to: "/account/addresses", label: "Địa chỉ giao hàng", icon: FiMapPin },
     { to: "/account/vouchers", label: "Voucher / Điểm thưởng", icon: FiGift },
     { to: "/account/security", label: "Cài đặt bảo mật", icon: FiLock },
-    { to: "/account/support", label: "Hỗ trợ / Chatbot", icon: FiMessageCircle },
+    // { to: "/account/support", label: "Hỗ trợ / Chatbot", icon: FiMessageCircle },
 ];
 
 const getUser = () => {

@@ -1,7 +1,7 @@
 // src/api/orderApi.js
 // ✅ Gọi API thật đến backend Node.js để lưu đơn hàng vào PostgreSQL
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 export const orderApi = {
   /**
@@ -11,7 +11,7 @@ export const orderApi = {
    */
   create: async (payload) => {
     try {
-      const res = await fetch(`${BASE_URL}/api/orders`, {
+      const res = await fetch(`${BASE_URL}/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -46,7 +46,7 @@ export const orderApi = {
    */
   list: async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/orders`);
+      const res = await fetch(`${BASE_URL}/orders`);
       const data = await res.json();
       return data?.data || [];
     } catch (err) {

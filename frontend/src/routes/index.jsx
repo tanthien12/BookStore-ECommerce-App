@@ -1,12 +1,13 @@
-import { createBrowserRouter } from 'react-router-dom';
 import React from 'react';
+import { createBrowserRouter } from 'react-router-dom';
 import App from '../App.jsx';
 import Home from '../pages/Home.jsx';
 import Login from '../pages/Login.jsx';
 import Register from '../pages/Register.jsx';
 import ForgotPassword from '../pages/ForgotPassword.jsx';
 import AuthRecover from '../pages/AuthRecover.jsx';
-import AdminLayout from '../pages/admin/AdminLayout.jsx';
+// import AdminLayout from '../pages/admin/AdminLayout.jsx';
+import AdminRoute from './AdminRoute.jsx';
 import ProductList from '../pages/admin/ProductList.jsx';
 import CategoryList from '../pages/admin/CategoryList.jsx';
 import OrderList from '../pages/admin/OrderList.jsx';
@@ -43,6 +44,9 @@ import Checkout from '../pages/Checkout.jsx';
 import SearchResult from '../pages/SearchResult.jsx';
 import CheckoutFail from '../pages/CheckoutFail.jsx';
 import AdminCouponList from '../pages/admin/AdminCouponList.jsx';
+import AddVoucher from '../pages/admin/AddVoucher.jsx';
+import EditVoucher from '../pages/admin/EditVoucher.jsx';
+import VoucherList from '../pages/admin/VoucherList.jsx';
 
 import AdminBlog from "../pages/admin/AdminBlog.jsx";
 import EditBlog from "../pages/admin/EditBlog.jsx";
@@ -139,7 +143,8 @@ const router = createBrowserRouter([
             // ========== Admin Routes ==========
             {
                 path: "admin",
-                element: <AdminLayout />,
+                // element: <AdminLayout />,
+                element: <AdminRoute />,
                 children: [
                     { index: true, element: <DashboardAdmin /> }, // /admin
                     { path: "products", element: <ProductList /> }, // /admin/products
@@ -158,7 +163,7 @@ const router = createBrowserRouter([
                     { path: "users", element: <UserList /> }, // /admin/users
                     { path: "users-add", element: <AddUser /> }, // /admin/users-add
                     { path: "users-edit/:id", element: <EditUser /> }, // /admin/users-edit/:id
-                    
+
                     { path: "flashsales", element: <FlashsaleList /> },
                     { path: "flashsales-add", element: <AddFlashsale /> },
                     { path: "flashsales-edit/:id", element: <EditFlashsale /> },
@@ -167,6 +172,13 @@ const router = createBrowserRouter([
                     { path: "blog", element: <AdminBlog /> },
                     { path: "blog-add", element: <EditBlog /> }, // Dùng chung BlogEditor
                     { path: "blog-edit/:id", element: <EditBlog /> },
+
+                    { path: "vouchers", element: <VoucherList /> },
+                    { path: "vouchers-add", element: <AddVoucher /> },
+                    { path: "vouchers-edit/:id", element: <EditVoucher /> },
+
+
+
 
                     // { path: "users", element: <UserList /> }, // /admin/users
                 ],

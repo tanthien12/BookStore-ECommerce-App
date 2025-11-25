@@ -274,6 +274,26 @@ async function listAvailableCouponsForUser(userId, client = pool) {
 
   return rows;
 }
+async function listUsedCouponsForUser(userId, client = pool) {
+  const { rows } = await client.query(
+    `
+    SELECT
+      cr.used_at,
+      cr.order_id,
+      c.code,
+      c.description,
+      c.type,
+      c.value
+    FROM bookstore.coupon_redemption cr
+    JOIN bookstore.coupon c ON c.id = cr.coupon_id
+    WHERE cr.user_id = $1
+    ORDER BY cr.used_at DESC
+    `,
+    [userId]
+  );
+
+  return rows;
+}
 
 module.exports = {
   getCouponByCode,
@@ -285,6 +305,7 @@ module.exports = {
   updateCoupon,
   deleteCoupon,
   listAvailableCouponsForUser,
+  listUsedCouponsForUser,
 };
 
 

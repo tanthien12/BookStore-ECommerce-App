@@ -11,6 +11,7 @@ import {
 } from "react-icons/md";
 import { FaTicketAlt } from "react-icons/fa"; // 👈 icon cho Mã giảm giá
 import { FiX } from "react-icons/fi";
+import { MdArticle } from "react-icons/md";
 
 const menuItems = [
     { name: "Dashboard", path: "/admin", icon: <MdSpaceDashboard size={20} /> },
@@ -20,6 +21,7 @@ const menuItems = [
     { name: "Flash Sale", path: "/admin/flashsales", icon: <MdFlashOn size={20} /> },
     // 👇 Mục mới: Mã giảm giá
     { name: "Mã giảm giá", path: "/admin/coupons", icon: <FaTicketAlt size={20} /> },
+    { name: "Blog & Tin tức", path: "/admin/blog", icon: <MdArticle size={20} /> },
     { name: "Users", path: "/admin/users", icon: <MdPeople size={20} /> },
 ];
 

@@ -9,5 +9,5 @@ module.exports = {
     localDir: process.env.UPLOAD_LOCAL_DIR || 'uploads',
     limits: { fileSize: mb * 1024 * 1024 },
     allowedMime: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-    buckets: ['products', 'users', 'categories'],
+    buckets: ['products', 'users', 'categories', 'posts'],
 };

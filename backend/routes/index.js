@@ -13,6 +13,8 @@ const flashsaleController = require("../controllers/flashsale.controller");
 const categoryController = require("../controllers/category.controller");
 const orderController = require("../controllers/order.controller");
 const cartController = require("../controllers/cart.controller");
+const postController = require("../controllers/post.controller");
+const postCommentController = require("../controllers/post.comment.controller");
 
 
 const { authGuard: requireAuth, requireRole } = require("../middlewares/auth.middleware");
@@ -54,6 +56,9 @@ router.post("/upload/users/multiple", makeUploader("users").array("files", 5), u
 router.post("/upload/categories", makeUploader("categories").single("file"), uploadCtrl.uploadSingle("categories"));
 router.post("/upload/categories/multiple", makeUploader("categories").array("files", 10), uploadCtrl.uploadMultiple("categories"));
 
+router.post("/upload/posts", makeUploader("posts").single("file"), uploadCtrl.uploadSingle("posts"));
+router.post("/upload/posts/multiple", makeUploader("posts").array("files", 5), uploadCtrl.uploadMultiple("posts"));
+
 router.delete("/upload", uploadCtrl.remove);
 
 // ========== CATEGORY ==========
@@ -83,6 +88,7 @@ router.post("/cart/apply-coupon", requireAuth, voucherController.applyCoupon);
 // ========== BOOK ==========
 router.get("/books", bookController.list); // ?q=&page=&limit=&sort=newest
 router.get("/books/:id", bookController.detail);
+router.get("/books/:id/related", bookController.getRelated);
 router.post("/books", bookController.create);
 router.put("/books/:id", bookController.update);
 router.delete("/books/:id", bookController.remove);
@@ -218,3 +224,17 @@ router.post("/reviews", requireAuth, ReviewController.upsertRoot);
 router.post("/reviews/:id/replies", requireAuth, ReviewController.addReply);
 router.put("/replies/:id", requireAuth, ReviewController.updateReply);
 router.delete("/reviews/:id", requireAuth, ReviewController.deleteAny);
+
+// ========== BLOG ==========
+router.get("/blog-categories", postController.getCategories); // Lấy danh mục
+router.get("/posts", postController.list);
+router.get("/posts/:slugOrId", postController.detail);
+
+router.post("/posts", requireAuth, requireRole("admin"), postController.create);
+router.put("/posts/:id", requireAuth, requireRole("admin"), postController.update);
+router.delete("/posts/:id", requireAuth, requireRole("admin"), postController.remove);
+
+// ========== POST COMMENTS ==========
+router.get("/posts/:postId/comments", postCommentController.list);
+router.post("/posts/comments", requireAuth, postCommentController.create); // Cần login
+router.delete("/posts/comments/:id", requireAuth, postCommentController.remove); // Cần login

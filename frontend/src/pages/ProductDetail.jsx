@@ -8,13 +8,16 @@ import { useSelector } from "react-redux";
 import summaryApi, { authHeaders } from "../common";
 import { useCart } from "../context/CartContext";
 
-// helper format tiền của bạn
+// Helper format tiền
 import { money } from "../helpers/productHelper";
 
+// API review
 import { reviewApi } from "../api/reviewApi";
-import ReviewForm from "../components/layout/ReviewForm";
-import ReviewCard from "../components/layout/ReviewCard";
+
+// Layout components
 import RatingStars from "../components/layout/RatingStars";
+import RelatedBooks from "../components/layout/RelatedBooks";
+import ProductReviews from "../components/layout/ProductReviews"; // <--- Đã thêm component mới
 
 /* =================== Helpers chung =================== */
 function to1(num, fallback = "0.0") {
@@ -61,7 +64,6 @@ function toUrlArray(value) {
   return [];
 }
 
-
 // Gom ảnh từ DB: gallery_urls + image_url
 function collectImagesFromBook(book) {
   const urls = [
@@ -69,7 +71,9 @@ function collectImagesFromBook(book) {
     ...(book?.image_url ? [book.image_url] : []),
   ];
   const unique = Array.from(new Set(urls.filter(Boolean)));
-  return unique.length ? unique : ["https://via.placeholder.com/600x800?text=No+Image"];
+  return unique.length
+    ? unique
+    : ["https://via.placeholder.com/600x800?text=No+Image"];
 }
 
 /* =================== Lightbox =================== */
@@ -147,7 +151,8 @@ function ImageGallery({ book, discountPercent = 0 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [open, setOpen] = useState(false);
 
-  const handlePrev = () => setActiveIndex((cur) => (cur - 1 + images.length) % images.length);
+  const handlePrev = () =>
+    setActiveIndex((cur) => (cur - 1 + images.length) % images.length);
   const handleNext = () => setActiveIndex((cur) => (cur + 1) % images.length);
 
   return (
@@ -200,8 +205,11 @@ function ImageGallery({ book, discountPercent = 0 }) {
                 key={src + idx}
                 onClick={() => setActiveIndex(idx)}
                 onMouseEnter={() => setActiveIndex(idx)} // hover đổi ảnh
-                className={`relative aspect-[4/5] overflow-hidden rounded-lg border ${activeIndex === idx ? "border-red-500" : "border-gray-200 hover:border-gray-300"
-                  }`}
+                className={`relative aspect-[4/5] overflow-hidden rounded-lg border ${
+                  activeIndex === idx
+                    ? "border-red-500"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
                 aria-label={`Choose image ${idx + 1}`}
               >
                 <img
@@ -277,8 +285,9 @@ const InfoTable = ({ book }) => {
         {rows.map((row, i) => (
           <div
             key={row.label}
-            className={`grid grid-cols-[160px_1fr] gap-4 px-4 py-2 ${i % 2 === 0 ? "bg-gray-50" : "bg-white"
-              }`}
+            className={`grid grid-cols-[160px_1fr] gap-4 px-4 py-2 ${
+              i % 2 === 0 ? "bg-gray-50" : "bg-white"
+            }`}
           >
             <dt className="text-gray-500">{row.label}</dt>
             <dd className="text-gray-800">{row.value}</dd>
@@ -370,7 +379,6 @@ function SaleProgress({ sold, total }) {
   );
 }
 
-
 /* =================== Main =================== */
 export default function ProductDetail() {
   const { id } = useParams();
@@ -383,14 +391,14 @@ export default function ProductDetail() {
   const [qty, setQty] = useState(1);
   const [reviews, setReviews] = useState([]);
 
-  // thêm gần phần khai báo state khác
+  // Wishlist states
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
   // Load reviews
   const loadReviews = async () => {
     try {
-      const list = await reviewApi.fetchByBook(id);  // id = bookId lấy từ useParams()
+      const list = await reviewApi.fetchByBook(id); // id = bookId lấy từ useParams()
       setReviews(Array.isArray(list) ? list : []);
     } catch (error) {
       console.error("Failed to load reviews:", error);
@@ -400,9 +408,11 @@ export default function ProductDetail() {
 
   useEffect(() => {
     loadReviews();
+    // IMPORTANT: Khi id thay đổi (do click sách tương tự), cuộn lên đầu trang
+    window.scrollTo(0, 0);
   }, [id]);
 
-  // Fetch chi tiết sách (trả về book.active_flashsale)
+  // Fetch chi tiết sách
   useEffect(() => {
     let ignore = false;
 
@@ -428,23 +438,18 @@ export default function ProductDetail() {
     };
   }, [id]);
 
-  // Wishlist
+  // Wishlist Logic
   useEffect(() => {
-    if (!book?.id) return;      // chưa có book thì bỏ
-    // nếu bạn có state user, có thể check chưa login thì return luôn
-    // if (!currentUser) return;
+    if (!book?.id) return; // chưa có book thì bỏ
 
     const controller = new AbortController();
 
     (async () => {
       try {
-        const res = await fetch(
-          summaryApi.url(summaryApi.wishlist.list),
-          {
-            headers: { ...authHeaders() },
-            signal: controller.signal,
-          }
-        );
+        const res = await fetch(summaryApi.url(summaryApi.wishlist.list), {
+          headers: { ...authHeaders() },
+          signal: controller.signal,
+        });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.success) return;
 
@@ -453,15 +458,14 @@ export default function ProductDetail() {
         );
         setIsWishlisted(exists);
       } catch (err) {
-        // im lặng cũng được, không cần toast ở đây
+        // im lặng cũng được
       }
     })();
 
     return () => controller.abort();
   }, [book?.id]);
 
-
-  // --- Logic giá mới ---
+  // --- Logic giá mới & Flash Sale ---
   const activeSale = book?.active_flashsale; // (null hoặc object)
 
   const hasSale =
@@ -470,7 +474,9 @@ export default function ProductDetail() {
     book?.price != null &&
     Number(activeSale.sale_price) < Number(book.price);
 
-  const price = hasSale ? Number(activeSale.sale_price) : Number(book?.price ?? 0);
+  const price = hasSale
+    ? Number(activeSale.sale_price)
+    : Number(book?.price ?? 0);
   const oldPrice = hasSale ? Number(book.price) : null;
 
   const discountPercent = hasSale
@@ -484,8 +490,8 @@ export default function ProductDetail() {
     rawRating == null
       ? 0
       : Number.isFinite(Number(rawRating))
-        ? Number(rawRating)
-        : 0;
+      ? Number(rawRating)
+      : 0;
   const ratingCount =
     book?.rating_count == null ? 0 : Number(book.rating_count);
 
@@ -522,7 +528,6 @@ export default function ProductDetail() {
   const handleToggleWishlist = async () => {
     if (!book?.id) return;
 
-    // nếu bạn có state user, check luôn; ở đây check token qua authHeaders cũng OK
     const headers = authHeaders();
     if (!headers?.Authorization) {
       toast.info("Bạn cần đăng nhập để sử dụng danh sách yêu thích");
@@ -572,7 +577,6 @@ export default function ProductDetail() {
     }
   };
 
-
   /* =================== Render =================== */
   if (loading) {
     return (
@@ -595,7 +599,7 @@ export default function ProductDetail() {
 
   return (
     <div className="mx-auto max-w-7xl px-3 md:px-4 py-6">
-      {/* breadcrumb */}
+      {/* Breadcrumb */}
       <nav className="text-sm text-gray-500 mb-3">
         <Link to="/" className="hover:underline">
           Trang chủ
@@ -657,18 +661,21 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {/* THÊM KHỐI FLASH SALE */}
+            {/* FLASH SALE WIDGET */}
             {activeSale && (
               <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <span className="font-bold text-lg text-red-600">🔥 FLASH SALE</span>
+                  <span className="font-bold text-lg text-red-600">
+                    🔥 FLASH SALE
+                  </span>
                   <CountdownTimer endTime={activeSale.sale_end} />
                 </div>
-                <SaleProgress sold={activeSale.sold_quantity} total={activeSale.sale_quantity} />
+                <SaleProgress
+                  sold={activeSale.sold_quantity}
+                  total={activeSale.sale_quantity}
+                />
               </div>
             )}
-            {/* KẾT THÚC KHỐI FLASH SALE */}
-
 
             {/* Shipping */}
             <div className="mt-4">
@@ -696,17 +703,19 @@ export default function ProductDetail() {
                 >
                   Thêm vào giỏ
                 </button>
-                {/* <button className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-gray-700 hover:bg-gray-50">
-                  <FiHeart /> Yêu thích
-                </button> */}
+
                 <button
                   type="button"
                   onClick={handleToggleWishlist}
                   disabled={wishlistLoading}
                   className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium
-    ${isWishlisted ? "bg-red-50 border-red-200 text-red-600" : "text-gray-700 hover:bg-gray-50"}
-    ${wishlistLoading ? "opacity-70 cursor-not-allowed" : ""}
-  `}
+                    ${
+                      isWishlisted
+                        ? "bg-red-50 border-red-200 text-red-600"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }
+                    ${wishlistLoading ? "opacity-70 cursor-not-allowed" : ""}
+                  `}
                 >
                   {isWishlisted ? (
                     <FaHeart className="w-4 h-4" />
@@ -715,7 +724,6 @@ export default function ProductDetail() {
                   )}
                   {isWishlisted ? "Đã yêu thích" : "Yêu thích"}
                 </button>
-
               </div>
             </div>
 
@@ -738,55 +746,21 @@ export default function ProductDetail() {
             </p>
           </div>
 
-          {/* Review */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-4">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div>
-                <div className="text-base font-semibold text-gray-900">
-                  Đánh giá & nhận xét
-                </div>
-                <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-                  <RatingStars value={averageRating} />
-                  <span className="text-gray-700 font-medium">
-                    {to1(averageRating)} / 5
-                  </span>
-                  <span className="text-gray-500">
-                    ({ratingCount} đánh giá)
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <ReviewForm
-                bookId={id}
-                currentUser={currentUser}
-                onSubmitted={loadReviews}
-              />
-            </div>
-
-            <div>
-              {reviews.length === 0 ? (
-                <div className="text-sm text-gray-500">
-                  Chưa có đánh giá nào. Hãy là người đầu tiên!
-                </div>
-              ) : (
-                <ul className="space-y-4">
-                  {reviews.map((rv) => (
-                    <li key={rv.id}>
-                      <ReviewCard
-                        review={rv}
-                        currentUser={currentUser}
-                        reload={loadReviews}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
+          
         </div>
       </div>
+      {/* Review Section (Giao diện mới) */}
+          <div className="mt-6">
+            <ProductReviews
+              reviews={reviews}
+              currentUser={currentUser}
+              bookId={id}
+              reload={loadReviews}
+            />
+          </div>
+
+          {/* 👇 COMPONENT SÁCH TƯƠNG TỰ */}
+          <RelatedBooks currentBookId={id} />
     </div>
   );
 }

@@ -356,8 +356,23 @@ const OrderModel = {
         );
         return { ok: true };
     },
+    // * Kiểm tra xem user đã mua bookId chưa và đơn hàng đã giao thành công (delivered) chưa
+    async hasPurchasedItem(userId, bookId) {
+        const query = `
+            SELECT 1
+            FROM "order" o
+            JOIN order_details od ON o.id = od.order_id
+            WHERE o.user_id = $1
+              AND od.book_id = $2
+              AND o.status = 'delivered' -- Chỉ cho phép khi đã giao hàng
+            LIMIT 1;
+        `;
+        const { rowCount } = await pool.query(query, [userId, bookId]);
+        return rowCount > 0; // Trả về true nếu tìm thấy
+    },
 
-    updateStockAndSoldCounters, // Export hàm trừ kho
+    updateStockAndSoldCounters,
+     
 };
 
 module.exports = OrderModel;

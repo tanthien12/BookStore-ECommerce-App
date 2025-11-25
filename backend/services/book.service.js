@@ -29,9 +29,14 @@ const BookService = {
         return BookModel.findById(id);
     },
 
+    async getRelated(id) {
+        return BookModel.getRelated(id, 6); // Lấy 6 cuốn
+    },
+
     async list(params) {
         return BookModel.list(params);
     },
+    
    
 };
 

@@ -1,6 +1,6 @@
 // backend/controllers/address.controller.js
 const addressService = require('../services/address.service');
-const vnData = require("../data/vn-address.json");
+// const vnData = require("../data/vn-address.json");
 
 // Lấy danh sách tỉnh/thành
 exports.provinces = async (req, res, next) => {

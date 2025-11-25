@@ -271,6 +271,34 @@ const BookModel = {
             client.release();
         }
     },
+
+    async getRelated(bookId, limit = 6) {
+        const sql = `
+            SELECT 
+                b.id, b.title, b.author, b.isbn, b.publisher, b.published_year,
+                b.language, b.format, b.price, b.stock, b.sold_count,
+                b.description, b.image_url, b.gallery_urls, 
+                b.rating_avg, b.rating_count, b.created_at, b.updated_at,
+                sale.active_flashsale
+            FROM bookstore.book b
+            ${ACTIVE_FLASH_SALE_JOIN}
+            WHERE b.id IN (
+                -- Lấy danh sách sách có cùng category
+                SELECT bc.book_id 
+                FROM bookstore.books_categories bc
+                WHERE bc.category_id IN (
+                    -- Lấy các category của cuốn sách hiện tại
+                    SELECT category_id FROM bookstore.books_categories WHERE book_id = $1
+                )
+            )
+            AND b.id != $1 -- Trừ chính nó ra
+            ORDER BY RANDOM() -- Random thoải mái vì không còn DISTINCT
+            LIMIT $2
+        `;
+        
+        const { rows } = await pool.query(sql, [bookId, limit]);
+        return rows.map(mapRow);
+    },
 };
 
 module.exports = BookModel;

@@ -15,6 +15,7 @@ import {
   FiShoppingCart,
   FiUser,
   FiX,
+  FiBookOpen // Icon cho Blog
 } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import summaryApi from "../common";
@@ -134,6 +135,7 @@ const getAvatarInitials = (full) => {
   const last = parts[parts.length - 1]?.[0] || "";
   return (first + last).toUpperCase();
 };
+
 
 /* ================= Atoms ================= */
 const Badge = memo(({ value }) => {
@@ -528,10 +530,31 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
   const [accountOpen, setAccountOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
 
+  // 👇 THÊM STATE CHO DANH MỤC BLOG
+  const [blogCategories, setBlogCategories] = useState([]);
+
   const navigate = useNavigate();
 
   // ✅ Lấy cartCount trực tiếp từ context
   const { cartCount } = useCart();
+
+  // 👇 GỌI API LẤY DANH MỤC BLOG
+  useEffect(() => {
+    const fetchBlogCats = async () => {
+      try {
+        const res = await fetch(summaryApi.url(summaryApi.blogCategories.list));
+        const json = await res.json();
+        if (json.success) {
+          const hiddenCats = ["Trang Tĩnh", "System", "Footer Links", "Chưa phân loại"];
+          const validCats = (json.items || []).filter(c => !hiddenCats.includes(c.name));
+          setBlogCategories(validCats);
+        }
+      } catch (err) {
+        console.error("Lỗi tải danh mục blog:", err);
+      }
+    };
+    fetchBlogCats();
+  }, []);
 
   // Khi bấm tìm → điều hướng tới /search?q=...
   const submitSearch = () => {
@@ -554,6 +577,7 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+    
 
   const accountWrapRef = useRef(null);
   const openAccount = useCallback(() => setAccountOpen(true), []);
@@ -604,6 +628,44 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
               <CategoryMegaMenu
                 onNavigate={(path) => navigate(path)}
               />
+
+              {/* 👇 MENU BLOG DROPDOWN MỚI */}
+              <div className="relative group hidden lg:block">
+                {/* Nút chính */}
+                <Link 
+                  to="/blog" 
+                  className="flex items-center gap-1 font-medium text-gray-700 hover:text-red-600 transition px-2 py-4"
+                >
+                  <FiBookOpen className="text-lg" /> {/* Icon Blog */}
+                  <span>Blog</span>
+                  <FiChevronDown className="transition-transform group-hover:rotate-180" /> {/* Mũi tên xoay */}
+                </Link>
+
+                {/* Dropdown Menu (Hiện khi hover) */}
+                <div className="absolute top-full left-0 w-56 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-50">
+                  <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                   
+
+                    {/* Danh sách Category động */}
+                    {blogCategories.length > 0 ? (
+                      <div className="py-1">
+                        {blogCategories.map((cat) => (
+                          <Link
+                            key={cat.id}
+                            // Chuyển hướng kèm query param category_id
+                            to={`/blog?category_id=${cat.id}`} 
+                            className="block px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-colors"
+                          >
+                            {cat.name}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-xs text-gray-400 text-center">Đang cập nhật...</div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Center */}

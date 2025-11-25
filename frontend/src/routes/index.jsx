@@ -44,7 +44,11 @@ import SearchResult from '../pages/SearchResult.jsx';
 import CheckoutFail from '../pages/CheckoutFail.jsx';
 import AdminCouponList from '../pages/admin/AdminCouponList.jsx';
 
-
+import AdminBlog from "../pages/admin/AdminBlog.jsx";
+import EditBlog from "../pages/admin/EditBlog.jsx";
+import BlogList from "../pages/BlogList.jsx";
+import BlogDetail from "../pages/BlogDetail.jsx";
+import StaticPage from '../pages/StaticPage.jsx';
 
 const router = createBrowserRouter([
     {
@@ -64,6 +68,14 @@ const router = createBrowserRouter([
             {
                 path: '/category/:categoryId',
                 element: <CategoryPage />
+            },
+            { 
+                path: "blog", 
+                element: <BlogList /> 
+            },
+            { 
+                path: "blog/:slug",
+                element: <BlogDetail /> 
             },
             {
                 path: '/cart',
@@ -85,6 +97,9 @@ const router = createBrowserRouter([
                 path: '/checkout-fail',
                 element: <CheckoutFail />
             },
+            { path: "about", element: <StaticPage targetSlug="about-us" /> },
+            { path: "return-policy", element: <StaticPage targetSlug="return-policy" /> },
+            { path: "privacy-policy", element: <StaticPage targetSlug="privacy-policy" /> },
             // ket thuc them moi
 
             {
@@ -149,6 +164,9 @@ const router = createBrowserRouter([
                     { path: "flashsales-edit/:id", element: <EditFlashsale /> },
 
                     { path: 'coupons', element: <AdminCouponList /> },
+                    { path: "blog", element: <AdminBlog /> },
+                    { path: "blog-add", element: <EditBlog /> }, // Dùng chung BlogEditor
+                    { path: "blog-edit/:id", element: <EditBlog /> },
 
                     // { path: "users", element: <UserList /> }, // /admin/users
                 ],

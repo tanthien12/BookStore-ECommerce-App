@@ -98,6 +98,16 @@ module.exports = {
         }
     },
 
+    async getRelated(req, res, next) {
+        try {
+            const { id } = paramsIdSchema.parse(req.params);
+            const data = await BookService.getRelated(id);
+            res.json({ success: true, data });
+        } catch (err) {
+            next(err);
+        }
+    },
+
     async list(req, res, next) {
         try {
             const query = listSchema.parse(req.query);

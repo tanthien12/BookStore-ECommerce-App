@@ -54,6 +54,11 @@ const summaryApi = {
       single: "/upload/categories",
       multiple: "/upload/categories/multiple",
     },
+    post: { 
+      single: "/upload/posts", 
+      multiple: "/upload/posts/multiple" 
+    },
+
     remove: "/upload", // body: { bucket, fileName }
   },
 
@@ -168,6 +173,21 @@ const summaryApi = {
   voucher: {
     available: "/me/vouchers",
     used: "/me/vouchers/used",
+  },
+ blogCategories: {
+    list: "/blog-categories",
+  },
+  posts: {
+    list: "/posts",
+    create: "/posts",
+    detail: (slug) => `/posts/${slug}`,
+    update: (id) => `/posts/${id}`,
+    delete: (id) => `/posts/${id}`,
+  },
+  postComments: {
+    list: (postId) => `/posts/${postId}/comments`,
+    create: "/posts/comments",
+    delete: (id) => `/posts/comments/${id}`,
   },
   // // ====== Chatbot ======
   // url: (p) => `${API_URL}${p}`,

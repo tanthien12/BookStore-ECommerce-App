@@ -246,5 +246,6 @@ router.delete("/posts/:id", requireAuth, requireRole("admin"), postController.re
 
 // ========== POST COMMENTS ==========
 router.get("/posts/:postId/comments", postCommentController.list);
+// router.get("/admin/comments", requireAuth, requireRole("admin"), postCommentController.adminList);
 router.post("/posts/comments", requireAuth, postCommentController.create); // Cần login
 router.delete("/posts/comments/:id", requireAuth, postCommentController.remove); // Cần login

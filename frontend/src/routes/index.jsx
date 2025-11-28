@@ -53,6 +53,7 @@ import EditBlog from "../pages/admin/EditBlog.jsx";
 import BlogList from "../pages/BlogList.jsx";
 import BlogDetail from "../pages/BlogDetail.jsx";
 import StaticPage from '../pages/StaticPage.jsx';
+import AdminCommentList from '../pages/admin/AdminCommentList.jsx';
 
 const router = createBrowserRouter([
     {
@@ -177,7 +178,7 @@ const router = createBrowserRouter([
                     { path: "vouchers-add", element: <AddVoucher /> },
                     { path: "vouchers-edit/:id", element: <EditVoucher /> },
 
-
+                    { path: "comments", element: <AdminCommentList /> }
 
 
                     // { path: "users", element: <UserList /> }, // /admin/users

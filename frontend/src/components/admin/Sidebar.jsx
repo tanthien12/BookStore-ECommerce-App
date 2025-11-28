@@ -22,7 +22,7 @@ const menuItems = [
     // 👇 Mục mới: Mã giảm giá
 
     { name: "Mã giảm giá", path: "/admin/vouchers", icon: <FaTicketAlt size={20} /> },
-    { name: "Blog & Tin tức", path: "/admin/blog", icon: <MdArticle size={20} /> },
+    { name: "Blog", path: "/admin/blog", icon: <MdArticle size={20} /> },
     { name: "Users", path: "/admin/users", icon: <MdPeople size={20} /> },
 ];
 

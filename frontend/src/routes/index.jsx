@@ -105,6 +105,9 @@ const router = createBrowserRouter([
             { path: "about", element: <StaticPage targetSlug="about-us" /> },
             { path: "return-policy", element: <StaticPage targetSlug="return-policy" /> },
             { path: "privacy-policy", element: <StaticPage targetSlug="privacy-policy" /> },
+            { path: "shipping-policy", element: <StaticPage targetSlug="shipping-policy" /> },
+            { path: "help-center", element: <StaticPage targetSlug="help-center" /> },
+            { path: "terms-of-use", element: <StaticPage targetSlug="terms-of-use" /> },
             // ket thuc them moi
 
             {

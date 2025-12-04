@@ -95,7 +95,7 @@ export default function BlogList() {
             <span>›</span>
             {/* Đã đổi thành màu đen (gray-900) */}
             <span className="font-medium text-gray-900">
-                {categoryName || "Review sách của độc giả"}
+                {categoryName || "Tất cả bài viết"}
             </span>
         </div>
 
@@ -105,7 +105,7 @@ export default function BlogList() {
             <div className="w-full lg:w-3/4">
                 {/* Tiêu đề chính: Màu đen */}
                 <h1 className="text-3xl font-bold text-gray-900 mb-8 uppercase">
-                    {categoryName || "Review sách của độc giả"}
+                    {categoryName || "Tất cả bài viết"}
                 </h1>
 
                 {loading ? (

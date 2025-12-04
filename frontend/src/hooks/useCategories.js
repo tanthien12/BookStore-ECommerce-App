@@ -1,3 +1,4 @@
+//frontend/src/hooks/useCategories.js
 import { useEffect, useState } from "react";
 import summaryApi from "../common"; // Đảm bảo đường dẫn import đúng
 

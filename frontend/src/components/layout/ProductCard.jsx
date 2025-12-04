@@ -11,12 +11,14 @@ export default function ProductCard({ book, product, topBadgeText }) {
   const id = src.id;
   const title = src.title || "Sản phẩm";
   const imageUrl =
-    src.image_url || src.imageUrl || "https://via.placeholder.com/220x300?text=Book";
+    // src.image_url || src.imageUrl || "https://via.placeholder.com/220x300?text=Book";
+    src.image_url || src.imageUrl;
+    
 
   // --- Logic giá mới ---
   const activeSale = src.active_flashsale; // (null hoặc object)
   const basePrice = src.price ?? null;
-  
+
   const hasSale =
     activeSale &&
     activeSale.sale_price != null &&
@@ -34,12 +36,12 @@ export default function ProductCard({ book, product, topBadgeText }) {
   // Rating + sold
   const ratingAvg = Number(src.rating_avg ?? 0);
   const ratingCount = Number(src.rating_count ?? 0);
-  
+
   // Ưu tiên hiển thị số lượng bán của flash sale
-  const soldCount = activeSale 
-      ? (activeSale.sold_quantity ?? 0) 
-      : (src.sold_count ?? 0); // Nếu không sale, dùng tổng sold_count
-      
+  const soldCount = activeSale
+    ? (activeSale.sold_quantity ?? 0)
+    : (src.sold_count ?? 0); // Nếu không sale, dùng tổng sold_count
+
   const soldText = activeSale ? `🔥 Đã bán ${soldCount}` : (soldCount > 0 ? `Đã bán ${soldCount}` : null);
 
 

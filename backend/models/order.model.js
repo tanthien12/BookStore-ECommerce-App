@@ -363,27 +363,93 @@ const OrderModel = {
         return { order, items: dRes.rows };
     },
 
+    // async cancelMine(userId, orderId) {
+    //     const sRes = await pool.query(
+    //         `SELECT status FROM "order" WHERE id = $1 AND user_id = $2`,
+    //         [orderId, userId]
+    //     );
+    //     const row = sRes.rows[0];
+    //     if (!row) return { ok: false, status: 404, message: "Order not found" };
+
+    //     if (!["pending", "processing"].includes(row.status)) {
+    //         return {
+    //             ok: false,
+    //             status: 400,
+    //             message: "Không thể hủy đơn ở trạng thái hiện tại",
+    //         };
+    //     }
+
+    //     await pool.query(
+    //         `UPDATE "order" SET status = 'cancelled', updated_at = now() WHERE id = $1`,
+    //         [orderId]
+    //     );
+    //     return { ok: true };
+    // },
+
     async cancelMine(userId, orderId) {
-        const sRes = await pool.query(
-            `SELECT status FROM "order" WHERE id = $1 AND user_id = $2`,
-            [orderId, userId]
-        );
-        const row = sRes.rows[0];
-        if (!row) return { ok: false, status: 404, message: "Order not found" };
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN");
 
-        if (!["pending", "processing"].includes(row.status)) {
-            return {
-                ok: false,
-                status: 400,
-                message: "Không thể hủy đơn ở trạng thái hiện tại",
-            };
+            // 1. Kiểm tra đơn hàng và trạng thái (có khóa dòng FOR UPDATE để tránh xung đột)
+            const sRes = await client.query(
+                `SELECT status FROM "order" WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+                [orderId, userId]
+            );
+            const row = sRes.rows[0];
+
+            if (!row) {
+                await client.query("ROLLBACK");
+                return { ok: false, status: 404, message: "Order not found" };
+            }
+
+            if (!["pending", "processing"].includes(row.status)) {
+                await client.query("ROLLBACK");
+                return {
+                    ok: false,
+                    status: 400,
+                    message: "Không thể hủy đơn ở trạng thái hiện tại",
+                };
+            }
+
+            // 2. Cập nhật trạng thái đơn hàng sang 'cancelled'
+            await client.query(
+                `UPDATE "order" SET status = 'cancelled', updated_at = now() WHERE id = $1`,
+                [orderId]
+            );
+
+            // 3. Lấy danh sách item trong đơn hàng đó để hoàn kho
+            const itemsRes = await client.query(
+                `SELECT book_id, quantity FROM order_details WHERE order_id = $1`,
+                [orderId]
+            );
+            const items = itemsRes.rows;
+
+            // 4. Thực hiện vòng lặp hoàn kho (Reverse logic của lúc Create)
+            for (const item of items) {
+                await client.query(
+                    `UPDATE bookstore.book 
+                     SET 
+                        stock = stock + $1, 
+                        sold_count = GREATEST(sold_count - $1, 0) -- Tránh bị âm nếu dữ liệu lệch
+                     WHERE id = $2`,
+                    [item.quantity, item.book_id]
+                );
+
+                // Lưu ý: Nếu bạn muốn hoàn lại cả số lượng đã bán của Flashsale (nếu có),
+                // bạn cần logic phức tạp hơn (kiểm tra xem lúc mua có phải flashsale không).
+                // Tuy nhiên, việc hoàn lại stock gốc như trên là quan trọng nhất.
+            }
+
+            await client.query("COMMIT");
+            return { ok: true };
+        } catch (e) {
+            await client.query("ROLLBACK");
+            console.error("Lỗi khi hủy đơn:", e);
+            throw e; // Ném lỗi để Controller bắt và trả về 500
+        } finally {
+            client.release();
         }
-
-        await pool.query(
-            `UPDATE "order" SET status = 'cancelled', updated_at = now() WHERE id = $1`,
-            [orderId]
-        );
-        return { ok: true };
     },
     // * Kiểm tra xem user đã mua bookId chưa và đơn hàng đã giao thành công (delivered) chưa
     async hasPurchasedItem(userId, bookId) {
@@ -401,7 +467,7 @@ const OrderModel = {
     },
 
     updateStockAndSoldCounters,
-     
+
 };
 
 module.exports = OrderModel;

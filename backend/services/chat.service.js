@@ -1,3 +1,4 @@
+// backend/src/services/chat.service.js
 const { pool } = require("../config/db.config");
 const { ai, getModelName, SAFE_MODELS } = require("../config/ai.genai");
 const systemPrompt = require("../config/ai.system-prompt");

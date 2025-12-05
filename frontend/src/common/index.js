@@ -54,9 +54,9 @@ const summaryApi = {
       single: "/upload/categories",
       multiple: "/upload/categories/multiple",
     },
-    post: { 
-      single: "/upload/posts", 
-      multiple: "/upload/posts/multiple" 
+    post: {
+      single: "/upload/posts",
+      multiple: "/upload/posts/multiple"
     },
 
     remove: "/upload", // body: { bucket, fileName }
@@ -174,7 +174,7 @@ const summaryApi = {
     available: "/me/vouchers",
     used: "/me/vouchers/used",
   },
- blogCategories: {
+  blogCategories: {
     list: "/blog-categories",
   },
   posts: {
@@ -206,8 +206,13 @@ const summaryApi = {
     // ⚠️ EventSource KHÔNG gửi được header Authorization tuỳ ý.
     // -> Khuyên dùng httpOnly cookie cho auth; hoặc cho phép anonymous route rồi kiểm tra quyền trong tool.
     streamPath: "/chat/stream",
-    streamUrl: (q, conversationId) =>
-      joinUrl(`/chat/stream?${qs({ q, conversationId })}`),
+    streamUrl: (q, conversationId) => {
+      const h = authHeaders?.() || {};
+      const raw = (h.Authorization || h.authorization || "").replace(/^Bearer\s+/i, "");
+      const params = { q, conversationId };
+      if (raw) params.token = raw;        // <--- ĐÍNH KÈM TOKEN VÀO QUERY
+      return joinUrl(`/chat/stream?${qs(params)}`);
+    },
   },
 
 

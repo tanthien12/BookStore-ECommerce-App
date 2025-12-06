@@ -379,8 +379,8 @@ export default function ProductForm({
                             onChange={(e) => setFormat(e.target.value)}
                             className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value="paperback">Paperback</option>
-                            <option value="hardcover">Hardcover</option>
+                            <option value="paperback">Bìa mềm</option>
+                            <option value="hardcover">Bìa cứng</option>
                             <option value="ebook">eBook</option>
                         </select>
                     </div>

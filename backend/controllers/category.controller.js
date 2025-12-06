@@ -20,8 +20,14 @@ const updateSchema = createSchema.partial();
 const listSchema = z.object({
     q: z.string().optional(),
     page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
+    // ⬇️ tăng max lên 5000 để export không lỗi
+    limit: z.coerce.number().int().min(1).max(5000).default(20),
     sort: z.enum(["newest", "name_asc", "name_desc"]).optional(),
+
+    // ⬇️ thêm filter từ FE
+    has_products: z.enum(["with", "without"]).optional(),
+    created_from: z.string().optional(), // yyyy-mm-dd
+    created_to: z.string().optional(),
 });
 
 const idSchema = z.object({ id: z.string().uuid("id không hợp lệ") });

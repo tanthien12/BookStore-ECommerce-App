@@ -165,12 +165,42 @@ async function tool_add_to_cart(userId, args) {
   }
 }
 
+// async function tool_get_order_status(userId, args) {
+//   const { id, order_code } = getOrderStatusSchema.parse(args);
+//   if (!userId) return { error: "UNAUTHENTICATED", message: "Bạn cần đăng nhập để xem đơn hàng." };
+
+//   const params = [userId];
+//   let where = `o.user_id = $1`;
+//   if (id) {
+//     params.push(id);
+//     where += ` AND o.id = $${params.length}`;
+//   } else if (order_code) {
+//     params.push(order_code);
+//     where += ` AND o.tracking_number = $${params.length}`;
+//   } else {
+//     return { error: "INVALID_ARGS", message: "Thiếu 'id' hoặc 'order_code'." };
+//   }
+
+//   const sql = `
+//     SELECT o.id, o.status, o.placed_at, o.grand_total, o.tracking_number,
+//            p.status AS payment_status, p.method AS payment_method, p.amount_paid
+//     FROM "order" o
+//     LEFT JOIN payment p ON p.order_id = o.id
+//     WHERE ${where}
+//     LIMIT 1
+//   `;
+//   const { rows } = await pool.query(sql, params);
+//   if (!rows.length) return { error: "NOT_FOUND", message: "Không tìm thấy đơn hàng của bạn." };
+//   return { order: rows[0] };
+// }
+
 async function tool_get_order_status(userId, args) {
   const { id, order_code } = getOrderStatusSchema.parse(args);
   if (!userId) return { error: "UNAUTHENTICATED", message: "Bạn cần đăng nhập để xem đơn hàng." };
 
   const params = [userId];
   let where = `o.user_id = $1`;
+
   if (id) {
     params.push(id);
     where += ` AND o.id = $${params.length}`;
@@ -178,20 +208,35 @@ async function tool_get_order_status(userId, args) {
     params.push(order_code);
     where += ` AND o.tracking_number = $${params.length}`;
   } else {
-    return { error: "INVALID_ARGS", message: "Thiếu 'id' hoặc 'order_code'." };
-  }
-
-  const sql = `
+    // ✅ Fallback: không có id / order_code -> lấy đơn gần nhất
+    const sqlLatest = `
     SELECT o.id, o.status, o.placed_at, o.grand_total, o.tracking_number,
            p.status AS payment_status, p.method AS payment_method, p.amount_paid
     FROM "order" o
     LEFT JOIN payment p ON p.order_id = o.id
-    WHERE ${where}
+    WHERE o.user_id = $1
+    ORDER BY o.placed_at DESC
     LIMIT 1
   `;
+    const { rows } = await pool.query(sqlLatest, [userId]);
+    if (!rows.length) {
+      return { error: "NOT_FOUND", message: "Bạn chưa có đơn hàng nào." };
+    }
+    return { order: rows[0] };
+  }
+
+  const sql = `
+  SELECT o.id, o.status, o.placed_at, o.grand_total, o.tracking_number,
+         p.status AS payment_status, p.method AS payment_method, p.amount_paid
+  FROM "order" o
+  LEFT JOIN payment p ON p.order_id = o.id
+  WHERE ${where}
+  LIMIT 1
+`;
   const { rows } = await pool.query(sql, params);
   if (!rows.length) return { error: "NOT_FOUND", message: "Không tìm thấy đơn hàng của bạn." };
   return { order: rows[0] };
+
 }
 
 // ====== Phase 2 tools ======

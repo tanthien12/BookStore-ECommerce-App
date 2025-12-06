@@ -3,6 +3,8 @@
 const { startConversation, streamGemini } = require("../services/chat.service");
 const { pool } = require("../config/db.config");
 const jwt = require("jsonwebtoken");
+// Dùng chung 1 secret cho verify, khớp với chỗ sign token
+const JWT_SECRET = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
 
 async function start(req, res) {
     const userId = req.user?.id || null;
@@ -51,22 +53,53 @@ async function health(req, res) {
     res.json(out);
 }
 
+
 async function stream(req, res) {
-    // Nhận token từ query (vì EventSource không gửi Authorization header)
     try {
         const qToken = (req.query.token || "").toString();
-        if (qToken) {
-            const payload = jwt.verify(qToken, process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET);
-            req.user = { id: payload.id || payload.user_id, email: payload.email, role: payload.role };
+
+        if (qToken && JWT_SECRET) {
+            try {
+                const payload = jwt.verify(qToken, JWT_SECRET);
+
+                // ⚠️ SỬA Ở ĐÂY: ƯU TIÊN payload.id || payload.user_id || payload.sub
+                const userId = payload.id || payload.user_id || payload.sub;
+
+                req.user = {
+                    id: userId,
+                    email: payload.email,
+                    role: payload.role,
+                    raw: payload,    // optional: để debug sau này
+                };
+
+                console.log("[chat.stream] user from token:", req.user.id);
+            } catch (e) {
+                console.error("[chat.stream] invalid token:", e.message);
+            }
         }
-    } catch (_) { /* token không hợp lệ -> xem như guest */ }
-    
-    const q = (req.query.q || "").toString();
-    const conversationId = (req.query.conversationId || "").toString();
-    if (!q || !conversationId) {
-        return res.status(400).json({ error: "MISSING_PARAMS", message: "Thiếu q hoặc conversationId" });
+
+        const q = (req.query.q || "").toString();
+        const conversationId = (req.query.conversationId || "").toString();
+        if (!q || !conversationId) {
+            return res
+                .status(400)
+                .json({ error: "MISSING_PARAMS", message: "Thiếu q hoặc conversationId" });
+        }
+
+        await streamGemini({
+            res,
+            conversationId,
+            user: req.user || null,
+            userInput: q,
+        });
+    } catch (err) {
+        console.error("[chat.stream] error:", err?.message);
+        try {
+            res
+                .status(500)
+                .json({ error: "STREAM_ERROR", message: "Lỗi stream" });
+        } catch (_) { }
     }
-    await streamGemini({ res, conversationId, user: req.user || null, userInput: q });
 }
 
 async function streamTest(req, res) {

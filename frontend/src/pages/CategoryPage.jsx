@@ -10,6 +10,7 @@ import useCategories from "../hooks/useCategories";
 // (Không thay đổi)
 const SORTS = [
   { key: "id_desc", label: "Độ liên quan" },
+  { key: "sold_desc", label: "Bán chạy" },
   { key: "newest", label: "Mới nhất" },
   { key: "price_asc", label: "Giá ↑" },
   { key: "price_desc", label: "Giá ↓" },

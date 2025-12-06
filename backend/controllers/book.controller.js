@@ -40,7 +40,7 @@ const listSchema = z.object({
     format: z.string().optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(12),
-    sort: z.enum(["id_desc", "price_asc", "price_desc", "title_asc", "newest"]).optional(),
+    sort: z.enum(["id_desc", "price_asc", "price_desc", "title_asc", "newest", "sold_desc"]).optional(),
     min: z.coerce.number().min(0).optional(),
     max: z.coerce.number().min(0).optional(),
 });

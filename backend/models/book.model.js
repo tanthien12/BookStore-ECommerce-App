@@ -218,6 +218,7 @@ const BookModel = {
         if (sort === "price_desc") orderBy = `${effectivePriceSql} DESC`;
         if (sort === "title_asc") orderBy = "b.title ASC";
         if (sort === "newest") orderBy = "b.created_at DESC";
+        if (sort === "sold_desc") orderBy = "b.sold_count DESC NULLS LAST";
 
         const listSql = `
       SELECT 

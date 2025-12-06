@@ -9,6 +9,7 @@ const ALLOWED_SORTS = [
   "price_desc",
   "title_asc",
   "newest",
+  "sold_desc"
 ];
 
 export default function useBookList(options = {}) {

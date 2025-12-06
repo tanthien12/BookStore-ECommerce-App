@@ -8,6 +8,7 @@ import useCategories from "../hooks/useCategories"; // ⬅️ THÊM MỚI 1: IMP
 /** ---------------- Config ---------------- */
 const SORTS = [
   { key: "id_desc", label: "Độ liên quan" },
+  { key: "sold_desc", label: "Bán chạy" },
   { key: "newest", label: "Mới nhất" },
   { key: "price_asc", label: "Giá ↑" },
   { key: "price_desc", label: "Giá ↓" },

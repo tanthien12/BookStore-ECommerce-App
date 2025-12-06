@@ -1,85 +1,104 @@
 import React from "react";
-import { Link } from "react-router-dom"; // Import Link
+import { Link } from "react-router-dom";
+// Nếu bạn muốn dùng icon xịn hơn thì import từ react-icons (tùy chọn)
+import { FiFacebook, FiYoutube, FiInstagram } from "react-icons/fi"; 
 
 export default function SiteFooter() {
     return (
-        <footer className="mt-10 border-t border-gray-200 bg-white">
-            <div className="mx-auto max-w-7xl px-3 md:px-4 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-                
-                {/* CỘT 1: THÔNG TIN */}
-                <div>
-                    <div className="text-gray-900 font-semibold mb-2">BookStore.com</div>
-                    <p className="text-gray-600 mb-2">Sách hay – Giao nhanh – Giá tốt.</p>
+        <footer className="mt-12 border-t border-gray-100 bg-white pt-10 pb-6">
+            <div className="mx-auto max-w-7xl px-4">
+                {/* FIX GRID: 
+                   - Mobile: grid-cols-1 (1 cột cho thoáng, hết bị lòi form)
+                   - Tablet nhỏ: grid-cols-2 
+                   - Desktop: grid-cols-4
+                */}
+                <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                     
-                    {/* Link Về chúng tôi */}
-                    <Link to="/about" className="block text-gray-600 hover:text-red-600 mb-1">
-                        Về chúng tôi
-                    </Link>
-                    
-                    <div className="mt-3 flex gap-3 text-gray-500 cursor-pointer">
-                        <span className="hover:text-blue-600">Facebook</span>
-                        <span className="hover:text-red-600">YouTube</span>
-                        <span className="hover:text-blue-500">Zalo</span>
+                    {/* CỘT 1: THÔNG TIN */}
+                    <div>
+                        <div className="text-xl font-bold text-red-600 mb-3">BookStore.com</div>
+                        <p className="text-gray-500 text-sm mb-4 leading-relaxed">
+                            Nơi lan tỏa tri thức.<br/>
+                            Sách thật – Giao nhanh – Giá tốt.
+                        </p>
+                        
+                        <div className="flex gap-4">
+                            {/* Icon giả lập bằng span nếu chưa cài react-icons, hoặc thay bằng Icon thật */}
+                            <a href="#" className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition">
+                                <span className="font-bold">f</span>
+                            </a>
+                            <a href="#" className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition">
+                                <span className="font-bold">Y</span>
+                            </a>
+                            <a href="#" className="w-8 h-8 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center hover:bg-sky-600 hover:text-white transition">
+                                <span className="font-bold">Z</span>
+                            </a>
+                        </div>
                     </div>
-                </div>
 
-                {/* CỘT 2: DỊCH VỤ */}
-                <div>
-                    <div className="text-gray-900 font-semibold mb-2">Dịch vụ</div>
-                    <ul className="space-y-1 text-gray-600">
-                        <li>
-                            {/* Ví dụ: Điều khoản */}
-                            <Link to="/terms-of-use" className="hover:text-red-600">Điều khoản sử dụng</Link>
-                        </li>
-                        <li>
-                            {/* Ví dụ: Bảo mật */}
-                            <Link to="/privacy-policy" className="hover:text-red-600">Bảo mật thông tin</Link>
-                        </li>
-                        <li>
-                            <Link to="/blog" className="hover:text-red-600">Tin tức & Sự kiện</Link>
-                        </li>
-                    </ul>
-                </div>
+                    {/* CỘT 2: DỊCH VỤ */}
+                    <div>
+                        <h3 className="text-gray-900 font-bold mb-4 uppercase text-sm tracking-wide">Dịch vụ</h3>
+                        <ul className="space-y-2.5 text-sm text-gray-600">
+                            <li><Link to="/about" className="hover:text-red-600 transition">Về chúng tôi</Link></li>
+                            <li><Link to="/terms-of-use" className="hover:text-red-600 transition">Điều khoản sử dụng</Link></li>
+                            <li><Link to="/privacy-policy" className="hover:text-red-600 transition">Bảo mật thông tin</Link></li>
+                            <li><Link to="/blog" className="hover:text-red-600 transition">Tin tức & Sự kiện</Link></li>
+                        </ul>
+                    </div>
 
-                {/* CỘT 3: HỖ TRỢ */}
-                <div>
-                    <div className="text-gray-900 font-semibold mb-2">Hỗ trợ</div>
-                    <ul className="space-y-1 text-gray-600">
-                        <li>
-                            <Link to="/help-center" className="hover:text-red-600">Trung tâm trợ giúp</Link>
-                        </li>
-                        <li>
-                            {/* Link Chính sách đổi trả */}
-                            <Link to="/return-policy" className="hover:text-red-600">Chính sách đổi trả</Link>
-                        </li>
-                        <li>
-                            <Link to="/shipping-policy" className="hover:text-red-600">Vận chuyển & thanh toán</Link>
-                        </li>
-                    </ul>
-                </div>
+                    {/* CỘT 3: HỖ TRỢ */}
+                    <div>
+                        <h3 className="text-gray-900 font-bold mb-4 uppercase text-sm tracking-wide">Hỗ trợ</h3>
+                        <ul className="space-y-2.5 text-sm text-gray-600">
+                            <li><Link to="/help-center" className="hover:text-red-600 transition">Trung tâm trợ giúp</Link></li>
+                            <li><Link to="/return-policy" className="hover:text-red-600 transition">Chính sách đổi trả</Link></li>
+                            <li><Link to="/shipping-policy" className="hover:text-red-600 transition">Vận chuyển & thanh toán</Link></li>
+                            <li><Link to="/contact" className="hover:text-red-600 transition">Liên hệ</Link></li>
+                        </ul>
+                    </div>
 
-                {/* CỘT 4: NEWSLETTER */}
-                <div>
-                    <div className="text-gray-900 font-semibold mb-2">Nhận bản tin</div>
-                    <p className="text-gray-600 mb-2">Ưu đãi mỗi tuần gửi tới bạn.</p>
-                    <form
-                        onSubmit={(e) => { e.preventDefault(); alert("Đã đăng ký!"); }}
-                        className="flex gap-2"
-                    >
-                        <input 
-                            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                            placeholder="Nhập email của bạn" 
-                        />
-                        <button className="rounded-lg bg-red-600 text-white px-3 py-2 text-sm hover:bg-red-700">
-                            Đăng ký
-                        </button>
-                    </form>
-                    <div className="mt-4 text-xs text-gray-500">VNPay · Momo · ShopeePay · ZaloPay</div>
+                    {/* CỘT 4: NEWSLETTER (Đã fix lỗi lòi ra) */}
+                    <div>
+                        <h3 className="text-gray-900 font-bold mb-4 uppercase text-sm tracking-wide">Nhận bản tin</h3>
+                        <p className="text-gray-500 text-sm mb-3">Đăng ký để nhận ưu đãi hàng tuần.</p>
+                        
+                        <form
+                            onSubmit={(e) => { e.preventDefault(); alert("Đã đăng ký!"); }}
+                            className="flex flex-col gap-2" 
+                        >
+                            {/* Input: full width */}
+                            <input 
+                                type="email"
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition"
+                                placeholder="Nhập email của bạn..." 
+                                required
+                            />
+                            {/* Button: full width để dễ bấm trên mobile */}
+                            <button 
+                                type="submit"
+                                className="w-full rounded-lg bg-red-600 text-white px-4 py-2.5 text-sm font-semibold hover:bg-red-700 transition shadow-sm active:scale-[0.98]"
+                            >
+                                Đăng ký ngay
+                            </button>
+                        </form>
+                        
+                        {/* List Payment methods */}
+                        <div className="mt-5 pt-4 border-t border-gray-100 flex flex-wrap gap-2 text-xs text-gray-400">
+                            <span className="bg-gray-100 px-2 py-1 rounded">Momo</span>
+                            <span className="bg-gray-100 px-2 py-1 rounded">ZaloPay</span>
+                            <span className="bg-gray-100 px-2 py-1 rounded">Visa/Master</span>
+                            <span className="bg-gray-100 px-2 py-1 rounded">COD</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div className="text-center text-xs text-gray-500 py-4 border-t">
-                © {new Date().getFullYear()} BookStore.com — All rights reserved.
+            {/* Copyright Line */}
+            <div className="border-t border-gray-100 mt-10 pt-6 text-center">
+                <p className="text-xs text-gray-500">
+                    © {new Date().getFullYear()} BookStore.com. All rights reserved.
+                </p>
             </div>
         </footer>
     );

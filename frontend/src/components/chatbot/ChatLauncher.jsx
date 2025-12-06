@@ -250,11 +250,13 @@ export default function ChatLauncher() {
     }, [messages]);
 
     // Auto resize textarea
+    // Auto resize textarea
     useEffect(() => {
         const ta = taRef.current;
         if (!ta) return;
-        ta.style.height = "0px";
-        ta.style.height = Math.min(180, Math.max(44, ta.scrollHeight)) + "px";
+        // Reset height về auto trước để tính toán chính xác khi xóa bớt text
+        ta.style.height = "auto";
+        ta.style.height = Math.min(150, ta.scrollHeight) + "px";
     }, [input]);
 
     // Auto scroll
@@ -551,7 +553,7 @@ export default function ChatLauncher() {
                                             "max-w-[80%] px-4 py-2.5 text-[14px] leading-relaxed shadow-sm",
                                             isUser
                                                 ? "bg-rose-600 text-white rounded-2xl rounded-br-sm"
-                                                : "bg-white text-zinc-900 border border-zinc-200 rounded-2xl rounded-bl-sm",
+                                                : "bg-gray-100 text-zinc-900 border border-zinc-200 rounded-2xl rounded-bl-sm",
                                         ].join(" ");
                                     }
 
@@ -618,16 +620,15 @@ export default function ChatLauncher() {
                             </div>
 
                             {/* Composer */}
-
                             <div className="px-4 py-3 border-t border-zinc-200 bg-zinc-50">
-                                <div className="flex items-center gap-2 rounded-full bg-white border border-zinc-300 px-3 py-1.5">
+                                <div className="flex items-end gap-2 rounded-3xl bg-white border border-zinc-300 px-3 py-2 shadow-sm focus-within:border-rose-500 focus-within:ring-1 focus-within:ring-rose-200 transition-all">
                                     <textarea
                                         ref={taRef}
-                                        className="flex-1 bg-transparent border-none outline-none resize-none text-[14px] leading-6 text-zinc-900 placeholder:text-zinc-400"
+                                        className="flex-1 max-h-[150px] bg-transparent border-none outline-none resize-none text-[14px] leading-6 text-zinc-900 placeholder:text-zinc-400 py-1"
                                         placeholder={
                                             streaming
                                                 ? "Đang phản hồi..."
-                                                : "Nhập câu hỏi, ví dụ: Kiểm tra đơn #ABC123"
+                                                : "Nhập câu hỏi..."
                                         }
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
@@ -640,44 +641,44 @@ export default function ChatLauncher() {
                                         rows={1}
                                         disabled={streaming}
                                     />
-                                    {!streaming ? (
-                                        <button
-                                            onClick={() => handleSend()}
-                                            disabled={!input.trim()}
-                                            className="flex-shrink-0 h-9 w-9 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md hover:bg-rose-700 disabled:opacity-50"
-                                        >
-                                            <svg
-                                                viewBox="0 0 24 24"
-                                                className="h-4 w-4"
-                                                fill="currentColor"
+
+                                    {/* Nút gửi / dừng */}
+                                    <div className="pb-1"> {/* Wrapper để căn nút xuống đáy nếu textarea nhiều dòng */}
+                                        {!streaming ? (
+                                            <button
+                                                onClick={() => handleSend()}
+                                                disabled={!input.trim()}
+                                                className="flex-shrink-0 h-8 w-8 rounded-full bg-rose-600 text-white flex items-center justify-center shadow hover:bg-rose-700 disabled:opacity-50 disabled:shadow-none transition-all"
                                             >
-                                                <path d="M4 4l16 8-16 8 3-8-3-8Zm5.5 8 1.5 4 6-4-6-4-1.5 4Z" />
-                                            </svg>
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={() => {
-                                                try {
-                                                    esRef.current?.close?.();
-                                                } catch { }
-                                                setStreaming(false);
-                                            }}
-                                            className="flex-shrink-0 h-9 px-3 rounded-full bg-zinc-200 text-zinc-800 text-xs"
-                                            title="Dừng stream"
-                                        >
-                                            Dừng
-                                        </button>
-                                    )}
+                                                <svg viewBox="0 0 24 24" className="h-4 w-4 ml-0.5" fill="currentColor">
+                                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                                                </svg>
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => {
+                                                    try { esRef.current?.close?.(); } catch { }
+                                                    setStreaming(false);
+                                                }}
+                                                className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center hover:bg-zinc-300 transition-all"
+                                                title="Dừng"
+                                            >
+                                                <div className="h-2.5 w-2.5 bg-current rounded-sm" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="mt-2 flex items-center justify-between text-[11px] text-zinc-500">
-                                    <span>
+
+                                <div className="mt-2 flex items-center justify-between text-[11px] text-zinc-400 px-1">
+                                    <span className="flex items-center gap-1.5">
+                                        {status === "ok" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>}
                                         {status === "ok"
-                                            ? "Thông tin gợi ý chỉ mang tính tham khảo."
+                                            ? "Được tư vấn bởi AI, thông tin chỉ mang tính tham khảo."
                                             : status === "checking"
-                                                ? "Đang kiểm tra kết nối tới trợ lý…"
-                                                : "Không thể kết nối tới trợ lý."}
+                                                ? "Đang kết nối..."
+                                                : "Mất kết nối"}
                                     </span>
-                                    <span>Enter để gửi • Shift+Enter xuống dòng</span>
+                                    <span>Shift+Enter xuống dòng</span>
                                 </div>
                             </div>
                         </div>

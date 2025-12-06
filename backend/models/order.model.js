@@ -259,9 +259,10 @@ const OrderModel = {
         return { ...order, items: itemsRes.rows };
     },
 
-    async list({ q, status, page = 1, limit = 10 }) {
+    async list({ q, status, page = 1, limit = 10, from, to }) {
         page = Math.max(1, Number(page) || 1);
-        limit = Math.min(100, Math.max(1, Number(limit) || 10));
+        // Cho phép export nhiều hơn
+        limit = Math.min(5000, Math.max(1, Number(limit) || 10));
         const offset = (page - 1) * limit;
 
         const where = [];
@@ -275,6 +276,16 @@ const OrderModel = {
         if (status) {
             where.push(`o.status = $${i++}`);
             params.push(status);
+        }
+
+        // Lọc theo ngày đặt đơn (placed_at) theo khoảng [from, to]
+        if (from) {
+            where.push(`o.placed_at::date >= $${i++}`);
+            params.push(from);
+        }
+        if (to) {
+            where.push(`o.placed_at::date <= $${i++}`);
+            params.push(to);
         }
 
         const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -294,12 +305,14 @@ const OrderModel = {
         (SELECT COUNT(*)::int FROM "order" o ${whereSql.replace(/o\./g, 'o.')}) AS total,
         (SELECT json_agg(p.*) FROM page_data p) AS items
     `;
+
         const listRes = await pool.query(listSql, [...params, limit, offset]);
         const total = listRes.rows[0]?.total || 0;
         const items = listRes.rows[0]?.items || [];
 
         return { items, total, page, limit, pages: Math.ceil(total / limit) };
     },
+
 
     async listByUser({ userId, page = 1, limit = 10, status }) {
         page = Math.max(1, Number(page) || 1);

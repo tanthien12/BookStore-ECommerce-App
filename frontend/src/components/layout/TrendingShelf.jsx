@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import useBookList from "../../hooks/useBookList";
 import ProductCard from "../../components/layout/ProductCard";
+import { FaFire } from "react-icons/fa";
 
 export default function TrendingShelf() {
   const { books, loading } = useBookList({ sort: "newest", limit: 20 });
@@ -13,7 +14,7 @@ export default function TrendingShelf() {
     <section className="mt-8 mb-14 bg-white border border-violet-200 shadow-md rounded-xl p-6 md:p-8">
       {/* Header với icon và màu tím nhẹ nhàng */}
       <div className="flex items-center gap-2 mb-5">
-        <div className="w-1 h-6 bg-violet-400 rounded-full"></div>
+        <FaFire className="text-orange-500 text-xl" />
         <h2 className="text-xl font-bold text-violet-700">Sách nổi bật</h2>
       </div>
 

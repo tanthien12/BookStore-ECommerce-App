@@ -3,6 +3,7 @@ import React, { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { money } from "../helpers/productHelper";
+import { toast } from "react-toastify";
 import { FiTrash2 } from "react-icons/fi";
 
 export default function CartPage() {
@@ -14,7 +15,6 @@ export default function CartPage() {
     updateQty,
     removeFromCart,
     clearCart,
-
     selectedProductIds,
     toggleSelect,
     selectAll,
@@ -45,7 +45,15 @@ export default function CartPage() {
       alert("Vui lòng chọn ít nhất 1 sản phẩm để thanh toán.");
       return;
     }
-
+    const itemsToCheckout = getSelectedItems(); // lúc này chắc chắn > 0
+    for (const item of itemsToCheckout) {
+      if (typeof item.stock === 'number' && item.qty > item.stock) {
+        toast.error(
+          `Sản phẩm "${item.title}" không đủ hàng (Chỉ còn ${item.stock}). Vui lòng giảm số lượng.`
+        );
+        return; // Dừng ngay lập tức, không chuyển trang
+      }
+    }
     const token =
       localStorage.getItem("access_token") || localStorage.getItem("token");
     if (!token) {
@@ -53,7 +61,7 @@ export default function CartPage() {
       return;
     }
 
-    const itemsToCheckout = getSelectedItems(); // lúc này chắc chắn > 0
+    
     sessionStorage.setItem(
       "checkout_items",
       JSON.stringify(itemsToCheckout)

@@ -602,7 +602,7 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
       <header
         className={`sticky top-0 z-50 bg-white ${shadow ? "shadow-sm" : ""}`}
       >
-        {/* ================= PHẦN MOBILE (MỚI THÊM) ================= */}
+        {/* ================= PHẦN MOBILE  ================= */}
         {/* Chỉ hiện khi ở màn hình nhỏ (md:hidden) */}
         <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white relative border-b border-gray-100">
             <button onClick={() => setMobileMenuOpen(true)} className="text-gray-700 hover:text-red-600 p-1">
@@ -646,23 +646,6 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
         {/* ================= PHẦN DESKTOP (GIỮ NGUYÊN CODE CŨ CỦA BẠN) ================= */}
         {/* Bọc trong div hidden md:block để chỉ hiện trên màn hình lớn */}
         <div className="hidden md:block">
-            {/* Top promo */}
-            <div className="bg-gradient-to-r from-red-600 via-rose-600 to-fuchsia-600 text-white">
-              <div className="mx-auto max-w-7xl px-4">
-                <div className="flex items-center justify-between py-1 text-xs">
-                  <p className="opacity-95">
-                    🔥 Miễn phí vận chuyển cho đơn từ 299k
-                  </p>
-                  <Link
-                    to="/promotions"
-                    className="underline/30 hover:underline"
-                  >
-                    Xem khuyến mãi
-                  </Link>
-                </div>
-              </div>
-            </div>
-
             {/* Main bar */}
             <div className="bg-white border-b border-gray-100">
               <div className="mx-auto max-w-7xl px-3 md:px-4">

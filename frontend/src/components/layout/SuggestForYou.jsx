@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import useBookList from "../../hooks/useBookList";
 import ProductCard from "../../components/layout/ProductCard";
+import { FaMagic } from "react-icons/fa";
 
 export default function SuggestForYou() {
   // Lấy 15 cuốn sách mới nhất để gợi ý
@@ -30,7 +31,7 @@ export default function SuggestForYou() {
     return (
       <section className="mt-10 mb-14 text-center bg-green-50 rounded-lg p-8">
         <h2 className="text-lg font-semibold mb-3 text-green-700 flex items-center justify-center gap-2">
-          <span className="text-2xl">✨</span>
+          <FaMagic className="text-yellow-500 text-xl" />
           Gợi ý cho bạn
         </h2>
         <p className="text-green-600 text-sm">Không có sách gợi ý.</p>

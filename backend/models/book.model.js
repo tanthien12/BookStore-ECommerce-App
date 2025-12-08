@@ -195,9 +195,14 @@ const BookModel = {
             values.push(`%${q}%`);
             const p = `$${i++}`;
             where.push(
-                `(b.title ILIKE ${p} OR b.author ILIKE ${p} OR b.isbn ILIKE ${p} OR b.publisher ILIKE ${p})`
+                // Dùng unaccent() để bỏ dấu cả 2 vế: dữ liệu trong DB và từ khóa tìm kiếm
+                `(unaccent(b.title) ILIKE unaccent(${p}) 
+                  OR unaccent(b.author) ILIKE unaccent(${p}) 
+                  OR b.isbn ILIKE ${p} 
+                  OR unaccent(b.publisher) ILIKE unaccent(${p}))`
             );
         }
+        // Các phần category_id, language, format giữ nguyên như cũ
         if (category_id) {
             joins += " JOIN bookstore.books_categories bc ON bc.book_id = b.id ";
             values.push(category_id);

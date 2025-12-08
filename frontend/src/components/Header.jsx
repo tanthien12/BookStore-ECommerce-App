@@ -32,6 +32,9 @@ import ChatLauncher from "./chatbot/ChatLauncher";
 // ✅ import cố định theo cấu trúc dự án của bạn
 import CategoryMegaMenu from "./layout/CategoryMegaMenu";
 
+// ✅ import chuông thông báo dùng chung (dropdown)
+import NotificationBell from "./layout/NotificationBell";
+
 /* ================= Utils (GIỮ NGUYÊN) ================= */
 const useClickOutside = (ref, handler) => {
   useEffect(() => {
@@ -328,7 +331,9 @@ const LanguageDropdown = ({ open, onToggle, onChange, value = "vi" }) => (
       className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-2.5 py-1.5 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500"
     >
       <span className="flex h-6 w-9 items-center justify-center rounded-md border border-gray-200 bg-red-500 text-base leading-none">
-        <span className="text-white" aria-hidden>★</span>
+        <span className="text-white" aria-hidden>
+          ★
+        </span>
       </span>
       <FiChevronDown className="h-4 w-4 text-gray-500" />
     </button>
@@ -344,7 +349,10 @@ const LanguageDropdown = ({ open, onToggle, onChange, value = "vi" }) => (
               role="option"
               aria-selected={value === opt.code}
               onClick={() => onChange?.(opt.code)}
-              className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${value === opt.code ? "text-red-600 font-medium" : "text-gray-700"}`}
+              className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-50 ${value === opt.code
+                ? "text-red-600 font-medium"
+                : "text-gray-700"
+                }`}
             >
               {opt.label}
             </button>
@@ -426,11 +434,22 @@ const MobileAccordionItem = ({ title, link, children, onClose }) => {
 
   return (
     <div className="border-b border-gray-100 last:border-none">
-      <div onClick={handleToggle} className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors select-none">
+      <div
+        onClick={handleToggle}
+        className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors select-none"
+      >
         <span className="font-medium text-gray-700">{title}</span>
-        {children && <FiChevronDown className={`text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />}
+        {children && (
+          <FiChevronDown
+            className={`text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""
+              }`}
+          />
+        )}
       </div>
-      <div className={`bg-gray-50 overflow-hidden transition-all duration-300 ${isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
+      <div
+        className={`bg-gray-50 overflow-hidden transition-all duration-300 ${isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+          }`}
+      >
         <div className="py-2 pl-4">{children}</div>
       </div>
     </div>
@@ -447,7 +466,7 @@ const MobileSidebar = ({ open, onClose, user, onLogout, blogCategories }) => {
           const res = await fetch(summaryApi.url(summaryApi.category.list));
           const json = await res.json();
           if (json.success) setProductCategories(json.items || []);
-        } catch (e) {}
+        } catch (e) { }
       };
       fetchCats();
     }
@@ -458,58 +477,129 @@ const MobileSidebar = ({ open, onClose, user, onLogout, blogCategories }) => {
 
   return (
     <>
-      <div className={`fixed inset-0 bg-black/50 z-[60] transition-opacity ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={onClose} />
-      <div className={`fixed top-0 left-0 bottom-0 w-[80%] max-w-[320px] bg-white z-[61] shadow-2xl transition-transform ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div
+        className={`fixed inset-0 bg-black/50 z-[60] transition-opacity ${open ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+        onClick={onClose}
+      />
+      <div
+        className={`fixed top-0 left-0 bottom-0 w-[80%] max-w-[320px] bg-white z-[61] shadow-2xl transition-transform ${open ? "translate-x-0" : "-translate-x-full"
+          }`}
+      >
         <div className="flex flex-col h-full">
           {/* Header Sidebar Mobile: Màu Đỏ */}
           <div className="bg-red-700 text-white pt-8 pb-6 px-4 flex flex-col items-center justify-center">
-             <div className="w-16 h-16 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center mb-3 overflow-hidden">
-                {user ? (
-                   avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" alt="avt" /> : <span className="text-2xl font-bold">{getAvatarInitials(displayName)}</span>
+            <div className="w-16 h-16 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center mb-3 overflow-hidden">
+              {user ? (
+                avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    className="w-full h-full object-cover"
+                    alt="avt"
+                  />
                 ) : (
-                   <FiUser className="text-3xl" />
-                )}
-             </div>
-             {user ? (
-               <div className="text-center">
-                 <p className="font-bold text-lg mb-1">{displayName}</p>
-                 <Link to="/account" onClick={onClose} className="text-sm text-white/80 hover:text-white underline">Quản lý tài khoản</Link>
-               </div>
-             ) : (
-               <div className="flex items-center gap-1 text-sm font-semibold tracking-wide">
-                 <Link to="/login" onClick={onClose} className="hover:underline hover:text-red-100 px-2 py-1">Đăng nhập</Link>
-                 <span className="opacity-50">|</span>
-                 <Link to="/register" onClick={onClose} className="hover:underline hover:text-red-100 px-2 py-1">Đăng ký</Link>
-               </div>
-             )}
+                  <span className="text-2xl font-bold">
+                    {getAvatarInitials(displayName)}
+                  </span>
+                )
+              ) : (
+                <FiUser className="text-3xl" />
+              )}
+            </div>
+            {user ? (
+              <div className="text-center">
+                <p className="font-bold text-lg mb-1">{displayName}</p>
+                <Link
+                  to="/account"
+                  onClick={onClose}
+                  className="text-sm text-white/80 hover:text-white underline"
+                >
+                  Quản lý tài khoản
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-sm font-semibold tracking-wide">
+                <Link
+                  to="/login"
+                  onClick={onClose}
+                  className="hover:underline hover:text-red-100 px-2 py-1"
+                >
+                  Đăng nhập
+                </Link>
+                <span className="opacity-50">|</span>
+                <Link
+                  to="/register"
+                  onClick={onClose}
+                  className="hover:underline hover:text-red-100 px-2 py-1"
+                >
+                  Đăng ký
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Menu Mobile */}
           <div className="flex-1 overflow-y-auto">
             <MobileAccordionItem title="Trang chủ" link="/" onClose={onClose} />
             <MobileAccordionItem title="Sách & Danh mục">
-               <Link to="/books" onClick={onClose} className="block px-4 py-3 text-sm text-red-600 font-semibold border-l-2 border-red-600 bg-red-50 mb-1">Xem tất cả sách</Link>
-               {productCategories.slice(0, 10).map(cat => (
-                 <Link key={cat.id} to={`/category/${cat.slug || cat.id}`} onClick={onClose} className="block px-4 py-2.5 text-sm text-gray-600 hover:text-red-600 bg-white">
-                   {cat.name}
-                 </Link>
-               ))}
+              <Link
+                to="/books"
+                onClick={onClose}
+                className="block px-4 py-3 text-sm text-red-600 font-semibold border-l-2 border-red-600 bg-red-50 mb-1"
+              >
+                Xem tất cả sách
+              </Link>
+              {productCategories.slice(0, 10).map((cat) => (
+                <Link
+                  key={cat.id}
+                  to={`/category/${cat.slug || cat.id}`}
+                  onClick={onClose}
+                  className="block px-4 py-2.5 text-sm text-gray-600 hover:text-red-600 bg-white"
+                >
+                  {cat.name}
+                </Link>
+              ))}
             </MobileAccordionItem>
             <MobileAccordionItem title="Blog & Tin tức">
-               <Link to="/blog" onClick={onClose} className="block px-4 py-3 text-sm text-red-600 font-semibold border-l-2 border-red-600 bg-red-50 mb-1">Trang chủ Blog</Link>
-               {blogCategories.map(cat => (
-                  <Link key={cat.id} to={`/blog?category_id=${cat.id}`} onClick={onClose} className="block px-4 py-2.5 text-sm text-gray-600 hover:text-red-600 bg-white">
-                    {cat.name}
-                  </Link>
-               ))}
+              <Link
+                to="/blog"
+                onClick={onClose}
+                className="block px-4 py-3 text-sm text-red-600 font-semibold border-l-2 border-red-600 bg-red-50 mb-1"
+              >
+                Trang chủ Blog
+              </Link>
+              {blogCategories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  to={`/blog?category_id=${cat.id}`}
+                  onClick={onClose}
+                  className="block px-4 py-2.5 text-sm text-gray-600 hover:text-red-600 bg-white"
+                >
+                  {cat.name}
+                </Link>
+              ))}
             </MobileAccordionItem>
-            <MobileAccordionItem title="Về chúng tôi" link="/about" onClose={onClose} />
-            <MobileAccordionItem title="Liên hệ" link="/contact" onClose={onClose} />
+            <MobileAccordionItem
+              title="Về chúng tôi"
+              link="/about"
+              onClose={onClose}
+            />
+            <MobileAccordionItem
+              title="Liên hệ"
+              link="/contact"
+              onClose={onClose}
+            />
           </div>
 
           {user && (
             <div className="p-4 border-t border-gray-100 bg-gray-50">
-              <button onClick={() => { onLogout(); onClose(); }} className="flex items-center justify-center gap-2 w-full py-3 text-gray-600 font-medium hover:text-red-600 hover:bg-white border border-transparent hover:border-gray-200 rounded-lg transition-all">
+              <button
+                onClick={() => {
+                  onLogout();
+                  onClose();
+                }}
+                className="flex items-center justify-center gap-2 w-full py-3 text-gray-600 font-medium hover:text-red-600 hover:bg-white border border-transparent hover:border-gray-200 rounded-lg transition-all"
+              >
                 <FiLogOut /> Đăng xuất
               </button>
             </div>
@@ -542,8 +632,15 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
         const res = await fetch(summaryApi.url(summaryApi.blogCategories.list));
         const json = await res.json();
         if (json.success) {
-          const hiddenCats = ["Trang Tĩnh", "System", "Footer Links", "Chưa phân loại"];
-          const validCats = (json.items || []).filter(c => !hiddenCats.includes(c.name));
+          const hiddenCats = [
+            "Trang Tĩnh",
+            "System",
+            "Footer Links",
+            "Chưa phân loại",
+          ];
+          const validCats = (json.items || []).filter(
+            (c) => !hiddenCats.includes(c.name)
+          );
           setBlogCategories(validCats);
         }
       } catch (err) {
@@ -591,7 +688,9 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
   };
 
   const handleLogoutMobile = async () => {
-    ["access_token", "refresh_token", "token", "user", "profile", "account"].forEach(k => localStorage.removeItem(k));
+    ["access_token", "refresh_token", "token", "user", "profile", "account"].forEach(
+      (k) => localStorage.removeItem(k)
+    );
     dispatch(setUserDetails(null));
     toast.success("Đăng xuất thành công");
     navigate("/");
@@ -600,165 +699,174 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
   return (
     <>
       <header
-        className={`sticky top-0 z-50 bg-white ${shadow ? "shadow-sm" : ""}`}
+        className={`sticky top-0 z-50 bg-white ${shadow ? "shadow-sm" : ""
+          }`}
       >
-        {/* ================= PHẦN MOBILE  ================= */}
-        {/* Chỉ hiện khi ở màn hình nhỏ (md:hidden) */}
+        {/* ================= PHẦN MOBILE ================= */}
         <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white relative border-b border-gray-100">
-            <button onClick={() => setMobileMenuOpen(true)} className="text-gray-700 hover:text-red-600 p-1">
-               <FiMenu className="text-2xl" />
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="text-gray-700 hover:text-red-600 p-1"
+          >
+            <FiMenu className="text-2xl" />
+          </button>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <Logo />
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowMobileSearch(!showMobileSearch)}
+              className={`text-2xl transition ${showMobileSearch ? "text-red-600" : "text-gray-700"
+                }`}
+            >
+              {showMobileSearch ? <FiX /> : <FiSearch />}
             </button>
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-               <Logo />
-            </div>
-            <div className="flex items-center gap-4">
-                <button onClick={() => setShowMobileSearch(!showMobileSearch)} className={`text-2xl transition ${showMobileSearch ? 'text-red-600' : 'text-gray-700'}`}>
-                    {showMobileSearch ? <FiX /> : <FiSearch />}
-                </button>
-                <Link to="/cart" className="relative text-gray-700 hover:text-red-600">
-                    <FiShoppingCart className="text-2xl" />
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
-                        {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                </Link>
-            </div>
+            <Link
+              to="/cart"
+              className="relative text-gray-700 hover:text-red-600"
+            >
+              <FiShoppingCart className="text-2xl" />
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            </Link>
+          </div>
         </div>
 
         {/* Mobile Search Expand */}
         {showMobileSearch && (
-            <div className="md:hidden px-4 pb-4 pt-1 bg-white border-b animate-[fadeIn_.2s_ease-out]">
-               <div className="relative">
-                 <input 
-                    autoFocus 
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && submitSearch()}
-                    placeholder="Tìm sách..." 
-                    className="w-full h-10 pl-4 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-red-500"
-                 />
-                 <button onClick={submitSearch} className="absolute right-0 top-0 h-10 w-10 flex items-center justify-center text-red-600">
-                    <FiSearch />
-                 </button>
-               </div>
+          <div className="md:hidden px-4 pb-4 pt-1 bg-white border-b animate-[fadeIn_.2s_ease-out]">
+            <div className="relative">
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submitSearch()}
+                placeholder="Tìm sách..."
+                className="w-full h-10 pl-4 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-red-500"
+              />
+              <button
+                onClick={submitSearch}
+                className="absolute right-0 top-0 h-10 w-10 flex items-center justify-center text-red-600"
+              >
+                <FiSearch />
+              </button>
             </div>
+          </div>
         )}
 
-        {/* ================= PHẦN DESKTOP (GIỮ NGUYÊN CODE CŨ CỦA BẠN) ================= */}
-        {/* Bọc trong div hidden md:block để chỉ hiện trên màn hình lớn */}
+        {/* ================= PHẦN DESKTOP ================= */}
         <div className="hidden md:block">
-            {/* Main bar */}
-            <div className="bg-white border-b border-gray-100">
-              <div className="mx-auto max-w-7xl px-3 md:px-4">
-                <div className="flex items-center gap-3 py-3 md:gap-6">
-                  {/* Left */}
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <Logo />
-                    <CategoryMegaMenu
-                      onNavigate={(path) => navigate(path)}
-                    />
+          {/* Top promo */}
 
-                    {/* Menu Blog */}
-                    <div className="relative group hidden lg:block">
-                      <Link 
-                        to="/blog" 
-                        className="flex items-center gap-1 font-medium text-gray-700 hover:text-red-600 transition px-2 py-4"
-                      >
-                        <FiBookOpen className="text-lg" />
-                        <span>Blog</span>
-                        <FiChevronDown className="transition-transform group-hover:rotate-180" />
-                      </Link>
+          {/* Main bar */}
+          <div className="bg-white border-b border-gray-100">
+            <div className="mx-auto max-w-7xl px-3 md:px-4">
+              <div className="flex items-center gap-3 py-3 md:gap-6">
+                {/* Left */}
+                <div className="flex items-center gap-3 md:gap-4">
+                  <Logo />
+                  <CategoryMegaMenu
+                    onNavigate={(path) => navigate(path)}
+                  />
 
-                      <div className="absolute top-full left-0 w-56 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-50">
-                        <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-                          {blogCategories.length > 0 ? (
-                            <div className="py-1">
-                              {blogCategories.map((cat) => (
-                                <Link
-                                  key={cat.id}
-                                  to={`/blog?category_id=${cat.id}`} 
-                                  className="block px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-colors"
-                                >
-                                  {cat.name}
-                                </Link>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="p-4 text-xs text-gray-400 text-center">Đang cập nhật...</div>
-                          )}
-                        </div>
+                  {/* Menu Blog */}
+                  <div className="relative group hidden lg:block">
+                    <Link
+                      to="/blog"
+                      className="flex items-center gap-1 font-medium text-gray-700 hover:text-red-600 transition px-2 py-4"
+                    >
+                      <FiBookOpen className="text-lg" />
+                      <span>Blog</span>
+                      <FiChevronDown className="transition-transform group-hover:rotate-180" />
+                    </Link>
+
+                    <div className="absolute top-full left-0 w-56 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-50">
+                      <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                        {blogCategories.length > 0 ? (
+                          <div className="py-1">
+                            {blogCategories.map((cat) => (
+                              <Link
+                                key={cat.id}
+                                to={`/blog?category_id=${cat.id}`}
+                                className="block px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-colors"
+                              >
+                                {cat.name}
+                              </Link>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-4 text-xs text-gray-400 text-center">
+                            Đang cập nhật...
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Center */}
-                  <SearchBar
-                    value={query}
-                    onChange={setQuery}
-                    onSubmit={submitSearch}
+                {/* Center */}
+                <SearchBar
+                  value={query}
+                  onChange={setQuery}
+                  onSubmit={submitSearch}
+                />
+
+                {/* Right */}
+                <div className="ml-auto flex items-end gap-2 sm:gap-4 md:gap-6">
+                  {/* 🔔 Chuông thông báo: dropdown ngay tại Header */}
+                  <NotificationBell />
+
+                  <NavIcon
+                    icon={FiShoppingCart}
+                    label="Giỏ hàng"
+                    badge={cartCount}
+                    onClick={() => navigate("/cart")}
                   />
 
-                  {/* Right */}
-                  <div className="ml-auto flex items-end gap-2 sm:gap-4 md:gap-6">
+                  {/* Account wrapper */}
+                  <div
+                    className="relative"
+                    ref={accountWrapRef}
+                    onMouseEnter={handleEnter}
+                    onMouseLeave={handleLeave}
+                    onFocus={onAccountFocusIn}
+                    onBlur={onAccountFocusOut}
+                  >
                     <NavIcon
-                      icon={FiBell}
-                      label="Thông báo"
-                      onClick={() => navigate("/notifications")}
+                      icon={FiUser}
+                      label={displayName}
+                      onClick={() => setAccountOpen((v) => !v)}
+                      active={accountOpen}
                     />
-
-                    <NavIcon
-                      icon={FiShoppingCart}
-                      label="Giỏ hàng"
-                      badge={cartCount}
-                      onClick={() => navigate("/cart")}
-                    />
-
-                    {/* Account wrapper */}
-                    <div
-                      className="relative"
-                      ref={accountWrapRef}
-                      onMouseEnter={handleEnter}
-                      onMouseLeave={handleLeave}
-                      onFocus={onAccountFocusIn}
-                      onBlur={onAccountFocusOut}
-                    >
-                      <NavIcon
-                        icon={FiUser}
-                        label={displayName}
-                        onClick={() =>
-                          setAccountOpen((v) => !v)
-                        }
-                        active={accountOpen}
-                      />
-                      <AccountPopover
-                        open={accountOpen}
-                        onClose={() => setAccountOpen(false)}
-                        mode={
-                          !isAuthenticated
-                            ? "guest"
-                            : isAdmin
-                              ? "admin"
-                              : "user"
-                        }
-                        user={stored || undefined}
-                      />
-                    </div>
-
-                    {/* Language */}
-                    <LanguageDropdown
-                      open={langOpen}
-                      onToggle={() =>
-                        setLangOpen((v) => !v)
+                    <AccountPopover
+                      open={accountOpen}
+                      onClose={() => setAccountOpen(false)}
+                      mode={
+                        !isAuthenticated
+                          ? "guest"
+                          : isAdmin
+                            ? "admin"
+                            : "user"
                       }
-                      onChange={(code) => {
-                        setLangOpen(false);
-                        onChangeLang?.(code);
-                      }}
-                      value="vi"
+                      user={stored || undefined}
                     />
                   </div>
+
+                  {/* Language */}
+                  <LanguageDropdown
+                    open={langOpen}
+                    onToggle={() => setLangOpen((v) => !v)}
+                    onChange={(code) => {
+                      setLangOpen(false);
+                      onChangeLang?.(code);
+                    }}
+                    value="vi"
+                  />
                 </div>
               </div>
             </div>
+          </div>
         </div>
 
         {/* Chatbot launcher */}
@@ -766,15 +874,16 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
       </header>
 
       {/* Component Sidebar dành cho Mobile */}
-      <MobileSidebar 
-          open={mobileMenuOpen} 
-          onClose={() => setMobileMenuOpen(false)} 
-          user={stored}
-          onLogout={handleLogoutMobile}
-          blogCategories={blogCategories}
+      <MobileSidebar
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        user={stored}
+        onLogout={handleLogoutMobile}
+        blogCategories={blogCategories}
       />
     </>
   );
 };
 
 export default Header;
+

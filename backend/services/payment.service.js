@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const { env } = require("../config");
 const { pool } = require("../config/db.config");
 const OrderService = require("./order.service");
-// ⬇️ THÊM MỚI 1: IMPORT OrderModel ⬇️
+// THÊM MỚI 1: IMPORT OrderModel
 const OrderModel = require("../models/order.model");
 
 /* Bỏ rỗng + sort A→Z */
@@ -49,7 +49,7 @@ const PaymentService = {
 
   async updatePaymentStatusByOrder(order_id, status, transaction_id = null) {
     const { rows } = await pool.query(
-       `
+      `
       UPDATE bookstore.payment
       SET status = $2::bookstore.payment_status,
           transaction_id = COALESCE($3, transaction_id),
@@ -158,66 +158,66 @@ const PaymentService = {
 
     // (Check 1) Chữ ký không hợp lệ HOẶC không tìm thấy giao dịch 'pending'
     if (secureHashFromVNPay !== calculatedHash || !orderId) {
-        if (orderId) {
-            await PaymentService.updatePaymentStatusByOrder(orderId, "failed");
-        }
-        return { ok: false, orderId, status: "failed", reason: "INVALID_SIGNATURE_OR_TX" };
+      if (orderId) {
+        await PaymentService.updatePaymentStatusByOrder(orderId, "failed");
+      }
+      return { ok: false, orderId, status: "failed", reason: "INVALID_SIGNATURE_OR_TX" };
     }
-    
+
     // (Check 2) Chữ ký hợp lệ, nhưng giao dịch VNPay thất bại
     if (responseCode !== "00") {
-        await PaymentService.updatePaymentStatusByOrder(orderId, "failed");
-        return { ok: false, orderId, status: "failed", reason: responseCode };
+      await PaymentService.updatePaymentStatusByOrder(orderId, "failed");
+      return { ok: false, orderId, status: "failed", reason: responseCode };
     }
 
     // (Check 3) Thành công (responseCode === "00" VÀ Chữ ký hợp lệ)
     // ⬇️ BẮT ĐẦU THÊM MỚI 2: LOGIC TRỪ KHO TRONG TRANSACTION ⬇️
     const client = await pool.connect();
     try {
-        await client.query('BEGIN');
-        
-        // 1. Lấy chi tiết đơn hàng (items)
-        const itemsRes = await client.query(
-            `SELECT book_id, quantity FROM bookstore.order_details WHERE order_id = $1`,
-            [orderId]
-        );
-        const items = itemsRes.rows;
+      await client.query('BEGIN');
 
-        if (!items || items.length === 0) {
-            throw new Error(`Không tìm thấy (items) cho đơn hàng ID: ${orderId}`);
-        }
+      // 1. Lấy chi tiết đơn hàng (items)
+      const itemsRes = await client.query(
+        `SELECT book_id, quantity FROM bookstore.order_details WHERE order_id = $1`,
+        [orderId]
+      );
+      const items = itemsRes.rows;
 
-        // 2. Gọi logic trừ kho (từ OrderModel)
-        // (Nếu hàm này ném lỗi (vd: hết hàng), transaction sẽ ROLLBACK)
-        await OrderModel.updateStockAndSoldCounters(client, items);
+      if (!items || items.length === 0) {
+        throw new Error(`Không tìm thấy (items) cho đơn hàng ID: ${orderId}`);
+      }
 
-        // 3. Cập nhật trạng thái payment
-        await client.query(
-           `UPDATE bookstore.payment SET status = 'paid', transaction_id = $2, paid_at = NOW()
+      // 2. Gọi logic trừ kho (từ OrderModel)
+      // (Nếu hàm này ném lỗi (vd: hết hàng), transaction sẽ ROLLBACK)
+      await OrderModel.updateStockAndSoldCounters(client, items);
+
+      // 3. Cập nhật trạng thái payment
+      await client.query(
+        `UPDATE bookstore.payment SET status = 'paid', transaction_id = $2, paid_at = NOW()
             WHERE order_id = $1 AND status = 'pending'`,
-            [orderId, transactionNo]
-        );
-        
-        // 4. Cập nhật trạng thái order
-        await client.query(
-           `UPDATE "order" SET status = 'paid', updated_at = now() 
+        [orderId, transactionNo]
+      );
+
+      // 4. Cập nhật trạng thái order
+      await client.query(
+        `UPDATE "order" SET status = 'paid', updated_at = now() 
             WHERE id = $1 AND status = 'pending'`,
-            [orderId]
-        );
-        
-        await client.query('COMMIT');
-        
-        return { ok: true, orderId, status: "paid" };
+        [orderId]
+      );
+
+      await client.query('COMMIT');
+
+      return { ok: true, orderId, status: "paid" };
 
     } catch (err) {
-        await client.query('ROLLBACK');
-        console.error(`[StockDeduction] Lỗi khi trừ kho/cập nhật đơn hàng ${orderId}:`, err);
-        
-        // (Ghi nhận lỗi nhưng vẫn báo VNPay thất bại)
-        await PaymentService.updatePaymentStatusByOrder(orderId, "failed");
-        return { ok: false, orderId, status: "failed", reason: "STOCK_UPDATE_ERROR" };
+      await client.query('ROLLBACK');
+      console.error(`[StockDeduction] Lỗi khi trừ kho/cập nhật đơn hàng ${orderId}:`, err);
+
+      // (Ghi nhận lỗi nhưng vẫn báo VNPay thất bại)
+      await PaymentService.updatePaymentStatusByOrder(orderId, "failed");
+      return { ok: false, orderId, status: "failed", reason: "STOCK_UPDATE_ERROR" };
     } finally {
-        client.release();
+      client.release();
     }
   },
 };

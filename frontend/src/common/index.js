@@ -134,6 +134,13 @@ const summaryApi = {
     bulk: "/admin/users/bulk",            // POST {action: 'activate'|'deactivate'|'assignRole'|'resetPassword', ids:[], role_id?}
   },
 
+  notifications: {
+    list: (params = '') => `/notifications${params}`,
+    unreadCount: () => '/notifications/unread-count',
+    markRead: (id) => `/notifications/${id}/read`,
+    markAllRead: () => `/notifications/read-all`,
+  },
+
   dashboard: {
     adminOverview: "/admin/dashboard",
     productAnalytics: "/admin/dashboard/products",

@@ -1,11 +1,23 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// frontend/src/pages/admin/AdminLayout.jsx
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { FiBell, FiChevronDown, FiLogOut, FiMenu, FiRefreshCw, FiSearch } from "react-icons/fi";
+import { FiChevronDown, FiLogOut, FiMenu, FiSearch } from "react-icons/fi";
 import { useDispatch, useSelector } from "react-redux";
 import Sidebar from "../../components/admin/Sidebar";
 import summaryApi, { authHeaders } from "../../common";
-import { clearUser, setUserDetails, setUserStatus } from "../../store/userSlice";
+import {
+    clearUser,
+    setUserDetails,
+    setUserStatus,
+} from "../../store/userSlice";
 import { toast } from "react-toastify";
+import NotificationBell from "../../components/layout/NotificationBell";
 
 const SIDEBAR_PIN_KEY = "admin.ui.sidebar.pinned";
 
@@ -28,7 +40,9 @@ const readStoredUser = () => {
 const normalizeUser = (payload) => {
     if (!payload || typeof payload !== "object") return null;
     if (payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
-        if (payload.data.user && typeof payload.data.user === "object") return payload.data.user;
+        if (payload.data.user && typeof payload.data.user === "object") {
+            return payload.data.user;
+        }
         return payload.data;
     }
     if (payload.user && typeof payload.user === "object") return payload.user;
@@ -38,14 +52,21 @@ const normalizeUser = (payload) => {
 
 const getDisplayName = (user) => {
     if (!user) return "Quản trị";
-    const candidates = [user.name, user.fullName, user.fullname, user.displayName];
+    const candidates = [
+        user.name,
+        user.fullName,
+        user.fullname,
+        user.displayName,
+    ];
     for (const c of candidates) {
         if (typeof c === "string" && c.trim()) return c.trim();
     }
     if (user.firstName || user.lastName) {
         return `${user.firstName || ""} ${user.lastName || ""}`.trim();
     }
-    if (typeof user.email === "string" && user.email.trim()) return user.email.trim();
+    if (typeof user.email === "string" && user.email.trim()) {
+        return user.email.trim();
+    }
     return "Quản trị";
 };
 
@@ -87,6 +108,7 @@ export default function AdminLayout() {
         typeof window === "undefined" ? false : window.innerWidth >= 1024
     );
 
+    // sync theo kích thước màn hình
     useEffect(() => {
         if (typeof window === "undefined") return undefined;
         const onResize = () => {
@@ -99,12 +121,17 @@ export default function AdminLayout() {
         return () => window.removeEventListener("resize", onResize);
     }, [sidebarPinned]);
 
+    // lưu trạng thái pin sidebar
     useEffect(() => {
         if (typeof window === "undefined") return;
-        window.localStorage.setItem(SIDEBAR_PIN_KEY, sidebarPinned ? "true" : "false");
+        window.localStorage.setItem(
+            SIDEBAR_PIN_KEY,
+            sidebarPinned ? "true" : "false"
+        );
         if (sidebarPinned) setSidebarOpen(true);
     }, [sidebarPinned]);
 
+    // search term đồng bộ với query param ?q=
     const [searchTerm, setSearchTerm] = useState("");
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -112,6 +139,7 @@ export default function AdminLayout() {
         setSearchTerm(next);
     }, [location.pathname, location.search]);
 
+    // phản chiếu event "admin:search:reflect" nếu có nơi khác bắn
     useEffect(() => {
         if (typeof window === "undefined") return undefined;
         const syncHandler = (event) => {
@@ -122,58 +150,39 @@ export default function AdminLayout() {
         return () => window.removeEventListener("admin:search:reflect", syncHandler);
     }, []);
 
-    const [notifOpen, setNotifOpen] = useState(false);
-    const [notifCount, setNotifCount] = useState(0);
-    const [notifLoading, setNotifLoading] = useState(false);
-    const [notifError, setNotifError] = useState(null);
+    // profile dropdown
     const [profileOpen, setProfileOpen] = useState(false);
+    const profileRef = useRef(null);
 
-    const fetchNotifications = useCallback(async (signal) => {
-        try {
-            setNotifLoading(true);
-            setNotifError(null);
-            const url = new URL(summaryApi.url(summaryApi.order.list));
-            url.searchParams.set("status", "pending");
-            url.searchParams.set("limit", "1");
-            url.searchParams.set("page", "1");
-            const res = await fetch(url, {
-                headers: { Accept: "application/json", ...authHeaders() },
-                signal,
-            });
-            if (!res.ok) throw new Error(`Không tải được thông báo (${res.status})`);
-            const data = await res.json();
-            const total =
-                [data?.total, data?.meta?.total, data?.pagination?.total, data?.count]
-                    .map((v) => Number(v))
-                    .find((v) => Number.isFinite(v)) ??
-                (Array.isArray(data?.items) ? data.items.length : 0);
-            setNotifCount(Math.max(0, total || 0));
-        } catch (error) {
-            if (error.name === "AbortError") return;
-            console.error(error);
-            setNotifError(error.message || "Không thể tải thông báo");
-        } finally {
-            setNotifLoading(false);
-        }
-    }, []);
-
+    // đóng dropdown khi click ngoài / ESC
     useEffect(() => {
         if (typeof window === "undefined") return undefined;
-        const ctrl = new AbortController();
-        fetchNotifications(ctrl.signal);
-        const id = window.setInterval(() => fetchNotifications(ctrl.signal), 120000);
-        return () => {
-            ctrl.abort();
-            window.clearInterval(id);
+        const onClick = (event) => {
+            if (profileRef.current && !profileRef.current.contains(event.target)) {
+                setProfileOpen(false);
+            }
         };
-    }, [fetchNotifications]);
+        const onEsc = (event) => {
+            if (event.key === "Escape") {
+                setProfileOpen(false);
+            }
+        };
+        window.addEventListener("mousedown", onClick);
+        window.addEventListener("keydown", onEsc);
+        return () => {
+            window.removeEventListener("mousedown", onClick);
+            window.removeEventListener("keydown", onEsc);
+        };
+    }, []);
 
+    // fetch thông tin user /me nếu chưa có
     const userFetchAttemptedRef = useRef(false);
-
     useEffect(() => {
-        if (user || userStatus === "loading" || userFetchAttemptedRef.current) return undefined;
+        if (user || userStatus === "loading" || userFetchAttemptedRef.current)
+            return undefined;
         let ignore = false;
         const ctrl = new AbortController();
+
         const loadMe = async () => {
             try {
                 userFetchAttemptedRef.current = true;
@@ -183,20 +192,26 @@ export default function AdminLayout() {
                     credentials: "include",
                     signal: ctrl.signal,
                 });
+
                 if (res.status === 401) {
                     dispatch(clearUser());
                     dispatch(setUserStatus("idle"));
                     storedUserRef.current = null;
                     if (typeof window !== "undefined") {
-                        ["access_token", "token", "refresh_token", "refreshToken", "user"].forEach((key) =>
-                            window.localStorage.removeItem(key)
+                        ["access_token", "token", "refresh_token", "refreshToken", "user"].forEach(
+                            (key) => window.localStorage.removeItem(key)
                         );
                     }
                     return;
                 }
-                if (!res.ok) throw new Error(`Không thể tải thông tin tài khoản (${res.status})`);
+
+                if (!res.ok) {
+                    throw new Error(`Không thể tải thông tin tài khoản (${res.status})`);
+                }
+
                 const payload = await res.json();
                 if (ignore) return;
+
                 const normalized = normalizeUser(payload);
                 if (normalized) {
                     dispatch(setUserDetails(normalized));
@@ -219,6 +234,7 @@ export default function AdminLayout() {
                 if (err.message) toast.error(err.message);
             }
         };
+
         loadMe();
         return () => {
             ignore = true;
@@ -226,6 +242,7 @@ export default function AdminLayout() {
         };
     }, [dispatch, user, userStatus]);
 
+    // persist user khi thay đổi
     useEffect(() => {
         if (!user || typeof window === "undefined") return;
         try {
@@ -240,29 +257,7 @@ export default function AdminLayout() {
     const avatarUrl = resolveAvatar(user);
     const initials = useMemo(() => getInitials(displayName), [displayName]);
 
-    const profileRef = useRef(null);
-    const notifRef = useRef(null);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return undefined;
-        const onClick = (event) => {
-            if (profileRef.current && !profileRef.current.contains(event.target)) setProfileOpen(false);
-            if (notifRef.current && !notifRef.current.contains(event.target)) setNotifOpen(false);
-        };
-        const onEsc = (event) => {
-            if (event.key === "Escape") {
-                setProfileOpen(false);
-                setNotifOpen(false);
-            }
-        };
-        window.addEventListener("mousedown", onClick);
-        window.addEventListener("keydown", onEsc);
-        return () => {
-            window.removeEventListener("mousedown", onClick);
-            window.removeEventListener("keydown", onEsc);
-        };
-    }, []);
-
+    // submit search
     const handleSearchSubmit = useCallback(
         (event) => {
             event.preventDefault();
@@ -270,14 +265,22 @@ export default function AdminLayout() {
             const params = new URLSearchParams(location.search);
             if (trimmed) params.set("q", trimmed);
             else params.delete("q");
-            navigate({ pathname: location.pathname, search: params.toString() ? `?${params.toString()}` : "" });
+
+            navigate({
+                pathname: location.pathname,
+                search: params.toString() ? `?${params.toString()}` : "",
+            });
+
             if (typeof window !== "undefined") {
-                window.dispatchEvent(new CustomEvent("admin:search", { detail: { query: trimmed } }));
+                window.dispatchEvent(
+                    new CustomEvent("admin:search", { detail: { query: trimmed } })
+                );
             }
         },
         [location.pathname, location.search, navigate, searchTerm]
     );
 
+    // logout
     const handleLogout = useCallback(async () => {
         try {
             await fetch(summaryApi.url(summaryApi.auth.logout), {
@@ -290,8 +293,8 @@ export default function AdminLayout() {
         } finally {
             userFetchAttemptedRef.current = false;
             if (typeof window !== "undefined") {
-                ["access_token", "token", "refresh_token", "refreshToken", "user"].forEach((key) =>
-                    window.localStorage.removeItem(key)
+                ["access_token", "token", "refresh_token", "refreshToken", "user"].forEach(
+                    (key) => window.localStorage.removeItem(key)
                 );
             }
             dispatch(clearUser());
@@ -300,6 +303,7 @@ export default function AdminLayout() {
         }
     }, [dispatch, navigate]);
 
+    // khi click menu trong sidebar trên mobile -> đóng sidebar nếu không pin
     const handleSidebarNavigate = useCallback(() => {
         if (!sidebarPinned) setSidebarOpen(false);
     }, [sidebarPinned]);
@@ -308,6 +312,7 @@ export default function AdminLayout() {
 
     return (
         <div className="relative min-h-screen bg-gray-100">
+            {/* Sidebar Admin */}
             <Sidebar
                 open={sidebarOpen}
                 pinned={sidebarPinned}
@@ -317,6 +322,7 @@ export default function AdminLayout() {
                 user={user}
             />
 
+            {/* Overlay khi sidebar mở trên mobile */}
             {!sidebarPinned && sidebarOpen && (
                 <div
                     className="fixed inset-0 z-30 bg-black/40 lg:hidden"
@@ -327,9 +333,14 @@ export default function AdminLayout() {
                 />
             )}
 
-            <div className={`flex min-h-screen flex-1 flex-col transition-[margin] duration-200 ${mainOffsetClass}`}>
+            {/* Nội dung chính */}
+            <div
+                className={`flex min-h-screen flex-1 flex-col transition-[margin] duration-200 ${mainOffsetClass}`}
+            >
+                {/* Topbar Admin */}
                 <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-gray-200 bg-white/95 px-4 shadow-sm backdrop-blur">
                     <div className="flex items-center gap-2">
+                        {/* Nút toggle sidebar trên mobile */}
                         <button
                             type="button"
                             onClick={() => setSidebarOpen((prev) => !prev)}
@@ -339,13 +350,23 @@ export default function AdminLayout() {
                         >
                             <FiMenu className="h-5 w-5" />
                         </button>
+
                         <div className="hidden flex-col lg:flex">
-                            <span className="text-xs uppercase tracking-wide text-gray-400">Quản trị</span>
-                            <span className="text-base font-semibold text-gray-900">Bảng điều khiển</span>
+                            <span className="text-xs uppercase tracking-wide text-gray-400">
+                                Quản trị
+                            </span>
+                            <span className="text-base font-semibold text-gray-900">
+                                Bảng điều khiển
+                            </span>
                         </div>
                     </div>
 
-                    <form onSubmit={handleSearchSubmit} className="relative hidden max-w-xl flex-1 items-center sm:flex" role="search">
+                    {/* Ô search trên desktop */}
+                    <form
+                        onSubmit={handleSearchSubmit}
+                        className="relative hidden max-w-xl flex-1 items-center sm:flex"
+                        role="search"
+                    >
                         <FiSearch className="pointer-events-none absolute left-3 h-5 w-5 text-gray-400" />
                         <input
                             type="search"
@@ -362,8 +383,14 @@ export default function AdminLayout() {
                         </button>
                     </form>
 
+                    {/* Khu vực bên phải: search mobile + chuông + profile */}
                     <div className="flex items-center gap-3">
-                        <form onSubmit={handleSearchSubmit} className="relative flex w-48 items-center sm:hidden" role="search">
+                        {/* Search ngắn cho mobile */}
+                        <form
+                            onSubmit={handleSearchSubmit}
+                            className="relative flex w-48 items-center sm:hidden"
+                            role="search"
+                        >
                             <FiSearch className="pointer-events-none absolute left-3 h-5 w-5 text-gray-400" />
                             <input
                                 type="search"
@@ -374,65 +401,10 @@ export default function AdminLayout() {
                             />
                         </form>
 
-                        <div className="relative" ref={notifRef}>
-                            <button
-                                type="button"
-                                onClick={() => setNotifOpen((prev) => !prev)}
-                                className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                aria-haspopup="dialog"
-                                aria-expanded={notifOpen}
-                                title="Thông báo đơn hàng chờ duyệt"
-                            >
-                                <FiBell className="h-5 w-5" />
-                                {notifLoading ? (
-                                    <span className="absolute -top-1 -right-1 inline-flex h-5 w-5 animate-pulse items-center justify-center rounded-full bg-blue-500 text-[10px] font-semibold text-white">
-                                        …
-                                    </span>
-                                ) : notifCount > 0 ? (
-                                    <span className="absolute -top-1 -right-1 inline-flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-semibold text-white">
-                                        {notifCount > 99 ? "99+" : notifCount}
-                                    </span>
-                                ) : null}
-                            </button>
-                            {notifOpen && (
-                                <div className="absolute right-0 z-30 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-4 text-sm shadow-lg">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900">Đơn hàng chờ xử lý</p>
-                                            <p className="mt-1 text-xs text-gray-500">
-                                                {notifError
-                                                    ? "Không thể lấy dữ liệu hiện tại."
-                                                    : notifCount > 0
-                                                        ? `Có ${notifCount} đơn đang chờ xác nhận.`
-                                                        : "Không có đơn hàng cần xử lý."}
-                                            </p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100"
-                                            onClick={() => fetchNotifications()}
-                                            title="Làm mới"
-                                        >
-                                            <FiRefreshCw className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                    <div className="mt-3 flex items-center justify-between">
-                                        <button
-                                            type="button"
-                                            className="text-sm font-medium text-blue-600 hover:underline"
-                                            onClick={() => {
-                                                navigate("/admin/orders?q=status:pending");
-                                                setNotifOpen(false);
-                                            }}
-                                        >
-                                            Xem chi tiết
-                                        </button>
-                                        {notifLoading && <span className="text-xs text-gray-400">Đang cập nhật…</span>}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        {/* Chuông thông báo dùng component chung */}
+                        <NotificationBell isAdmin />
 
+                        {/* Profile dropdown */}
                         <div className="relative" ref={profileRef}>
                             <button
                                 type="button"
@@ -442,19 +414,36 @@ export default function AdminLayout() {
                                 aria-expanded={profileOpen}
                             >
                                 <span className="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-sm font-semibold uppercase text-white">
-                                    {avatarUrl ? <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" /> : initials}
+                                    {avatarUrl ? (
+                                        <img
+                                            src={avatarUrl}
+                                            alt={displayName}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        initials
+                                    )}
                                 </span>
                                 <span className="hidden min-w-[120px] flex-col sm:flex">
-                                    <span className="truncate text-sm font-semibold text-gray-900">{displayName}</span>
-                                    <span className="truncate text-xs text-gray-500">{userEmail || "Quản trị viên"}</span>
+                                    <span className="truncate text-sm font-semibold text-gray-900">
+                                        {displayName}
+                                    </span>
+                                    <span className="truncate text-xs text-gray-500">
+                                        {userEmail || "Quản trị viên"}
+                                    </span>
                                 </span>
                                 <FiChevronDown className="hidden h-4 w-4 text-gray-400 sm:block" />
                             </button>
+
                             {profileOpen && (
                                 <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
                                     <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
-                                        <p className="text-sm font-semibold text-gray-900">{displayName}</p>
-                                        {userEmail ? <p className="text-xs text-gray-500">{userEmail}</p> : null}
+                                        <p className="text-sm font-semibold text-gray-900">
+                                            {displayName}
+                                        </p>
+                                        {userEmail ? (
+                                            <p className="text-xs text-gray-500">{userEmail}</p>
+                                        ) : null}
                                     </div>
                                     <div className="flex flex-col p-2">
                                         <button
@@ -485,7 +474,8 @@ export default function AdminLayout() {
                                             }}
                                             className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50"
                                         >
-                                            <FiLogOut className="h-4 w-4" /> Đăng xuất
+                                            <FiLogOut className="h-4 w-4" />
+                                            Đăng xuất
                                         </button>
                                     </div>
                                 </div>
@@ -494,6 +484,7 @@ export default function AdminLayout() {
                     </div>
                 </header>
 
+                {/* Nội dung các trang con */}
                 <main className="flex-1 p-4 sm:p-6">
                     <Outlet />
                 </main>
@@ -503,6 +494,7 @@ export default function AdminLayout() {
 }
 
 
+// // frontend/src/pages/admin/AdminLayout.jsx
 // import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // import { Outlet, useLocation, useNavigate } from "react-router-dom";
 // import { FiBell, FiChevronDown, FiLogOut, FiMenu, FiRefreshCw, FiSearch } from "react-icons/fi";
@@ -533,9 +525,7 @@ export default function AdminLayout() {
 // const normalizeUser = (payload) => {
 //     if (!payload || typeof payload !== "object") return null;
 //     if (payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)) {
-//         if (payload.data.user && typeof payload.data.user === "object") {
-//             return payload.data.user;
-//         }
+//         if (payload.data.user && typeof payload.data.user === "object") return payload.data.user;
 //         return payload.data;
 //     }
 //     if (payload.user && typeof payload.user === "object") return payload.user;
@@ -598,11 +588,8 @@ export default function AdminLayout() {
 //         if (typeof window === "undefined") return undefined;
 //         const onResize = () => {
 //             const isDesktop = window.innerWidth >= 1024;
-//             if (isDesktop) {
-//                 setSidebarOpen(true);
-//             } else if (!sidebarPinned) {
-//                 setSidebarOpen(false);
-//             }
+//             if (isDesktop) setSidebarOpen(true);
+//             else if (!sidebarPinned) setSidebarOpen(false);
 //         };
 //         onResize();
 //         window.addEventListener("resize", onResize);
@@ -616,7 +603,6 @@ export default function AdminLayout() {
 //     }, [sidebarPinned]);
 
 //     const [searchTerm, setSearchTerm] = useState("");
-
 //     useEffect(() => {
 //         const params = new URLSearchParams(location.search);
 //         const next = params.get("q") || "";
@@ -655,8 +641,8 @@ export default function AdminLayout() {
 //             const data = await res.json();
 //             const total =
 //                 [data?.total, data?.meta?.total, data?.pagination?.total, data?.count]
-//                     .map((value) => Number(value))
-//                     .find((value) => Number.isFinite(value)) ??
+//                     .map((v) => Number(v))
+//                     .find((v) => Number.isFinite(v)) ??
 //                 (Array.isArray(data?.items) ? data.items.length : 0);
 //             setNotifCount(Math.max(0, total || 0));
 //         } catch (error) {
@@ -757,12 +743,8 @@ export default function AdminLayout() {
 //     useEffect(() => {
 //         if (typeof window === "undefined") return undefined;
 //         const onClick = (event) => {
-//             if (profileRef.current && !profileRef.current.contains(event.target)) {
-//                 setProfileOpen(false);
-//             }
-//             if (notifRef.current && !notifRef.current.contains(event.target)) {
-//                 setNotifOpen(false);
-//             }
+//             if (profileRef.current && !profileRef.current.contains(event.target)) setProfileOpen(false);
+//             if (notifRef.current && !notifRef.current.contains(event.target)) setNotifOpen(false);
 //         };
 //         const onEsc = (event) => {
 //             if (event.key === "Escape") {
@@ -957,11 +939,7 @@ export default function AdminLayout() {
 //                                 aria-expanded={profileOpen}
 //                             >
 //                                 <span className="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 text-sm font-semibold uppercase text-white">
-//                                     {avatarUrl ? (
-//                                         <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
-//                                     ) : (
-//                                         initials
-//                                     )}
+//                                     {avatarUrl ? <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" /> : initials}
 //                                 </span>
 //                                 <span className="hidden min-w-[120px] flex-col sm:flex">
 //                                     <span className="truncate text-sm font-semibold text-gray-900">{displayName}</span>
@@ -1021,60 +999,3 @@ export default function AdminLayout() {
 //     );
 // }
 
-
-//code gốc
-// import React from "react";
-// import { Outlet } from "react-router-dom";
-// import Sidebar from "../../components/admin/Sidebar";
-
-// export default function AdminLayout() {
-//     return (
-//         <div className="flex">
-//             {/* Sidebar */}
-//             <Sidebar />
-
-//             {/* Main content */}
-//             <div className="ml-64 flex-1 flex flex-col min-h-screen bg-gray-100">
-//                 {/* Header */}
-//                 <header className="h-16 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-6">
-//                     <h2 className="text-lg font-semibold">Admin Dashboard</h2>
-
-//                     <div className="flex items-center gap-4">
-//                         {/* Search bar */}
-//                         <div className="relative">
-//                             <input
-//                                 type="text"
-//                                 placeholder="Search..."
-//                                 className="pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring focus:border-blue-500"
-//                             />
-//                             <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
-//                         </div>
-
-//                         {/* Notification */}
-//                         <button className="relative p-2 hover:bg-gray-100 rounded-full">
-//                             🔔
-//                             <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full px-1">
-//                                 3
-//                             </span>
-//                         </button>
-
-//                         {/* User Avatar */}
-//                         <div className="flex items-center gap-2">
-//                             <img
-//                                 src="https://i.pravatar.cc/32"
-//                                 alt="user"
-//                                 className="w-8 h-8 rounded-full"
-//                             />
-//                             <span className="text-sm font-medium">Admin</span>
-//                         </div>
-//                     </div>
-//                 </header>
-
-//                 {/* Nội dung trang (render theo route con) */}
-//                 <main className="flex-1 p-6">
-//                     <Outlet />
-//                 </main>
-//             </div>
-//         </div>
-//     );
-// }

@@ -1,3 +1,4 @@
+// frontend/src/pages/admin/AddOrder.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import OrderForm from "../../components/admin/OrderForm";

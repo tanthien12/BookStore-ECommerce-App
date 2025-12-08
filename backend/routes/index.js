@@ -16,6 +16,7 @@ const cartController = require("../controllers/cart.controller");
 const postController = require("../controllers/post.controller");
 const postCommentController = require("../controllers/post.comment.controller");
 
+const NotificationController = require("../controllers/notification.controller");
 
 const { authGuard: requireAuth, requireRole } = require("../middlewares/auth.middleware");
 const adminUserCtrl = require("../controllers/admin.user.controller");
@@ -194,6 +195,32 @@ router.get(
     voucherController.listUsedVouchers
 );
 
+// ========== NOTIFICATIONS ==========
+router.get(
+    "/notifications",
+    requireAuth,
+    NotificationController.list
+);
+
+router.get(
+    "/notifications/unread-count",
+    requireAuth,
+    NotificationController.unreadCount
+);
+
+router.post(
+    "/notifications/:id/read",
+    requireAuth,
+    NotificationController.markRead
+);
+
+router.post(
+    "/notifications/read-all",
+    requireAuth,
+    NotificationController.markAllRead
+);
+// HẾT NHÓM NOTIFICATIONS
+
 // chatbot
 // ========== CHATBOT (Gemini + SSE) ==========
 // Rate-limit cho SSE
@@ -217,7 +244,7 @@ router.get("/chat/stream-test", sseHeaders, chatCtl.streamTest);
 router.post("/chat/start", chatCtl.start);
 router.get("/chat/stream", sseHeaders, sseLimiter, chatCtl.stream);
 
-module.exports = router;
+
 
 //Province, District, Ward
 router.get("/provinces", AddressController.provinces);
@@ -249,3 +276,5 @@ router.get("/posts/:postId/comments", postCommentController.list);
 // router.get("/admin/comments", requireAuth, requireRole("admin"), postCommentController.adminList);
 router.post("/posts/comments", requireAuth, postCommentController.create); // Cần login
 router.delete("/posts/comments/:id", requireAuth, postCommentController.remove); // Cần login
+
+module.exports = router;

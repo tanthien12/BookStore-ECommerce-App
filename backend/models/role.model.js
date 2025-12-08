@@ -90,4 +90,15 @@ async function countUsersByRole() {
   return rows;
 }
 
-module.exports = { findIdByName, findById, findAllRoles, countUsersByRole };
+async function getAdmins() {
+  const sql = `
+    SELECT u.id, u.name, u.email
+    FROM ${TBL_USER} u
+    JOIN ${TBL_ROLE} r ON u.role_id = r.id
+    WHERE lower(r.role_name) = 'admin';
+  `;
+  const { rows } = await query(sql);
+  return rows;
+}
+
+module.exports = { findIdByName, findById, findAllRoles, countUsersByRole, getAdmins };

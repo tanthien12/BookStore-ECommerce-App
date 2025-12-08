@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
     FiArrowLeft,
-    FiEdit,
     FiTrash2,
     FiTruck,
     FiMapPin,
@@ -14,9 +13,12 @@ import {
     FiPhone,
     FiPackage,
     FiCreditCard,
+    FiRefreshCw,
+    FiChevronDown,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
-import summaryApi from "../../common";
+
+import summaryApi, { authHeaders } from "../../common";
 
 const toVND = (n) =>
     (Number(n) || 0).toLocaleString("vi-VN", {
@@ -269,6 +271,40 @@ export default function OrderDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
 
+    // đang cập nhật trạng thái?
+    const [updatingStatus, setUpdatingStatus] = useState(false);
+
+    // Cập nhật trạng thái đơn hàng (giống OrderList: optimistic  rollback)
+    const handleUpdateStatus = async (newStatus) => {
+        const oldStatus = orderStatus;
+        if (!order || !newStatus || newStatus === oldStatus) return;
+
+        // optimistic UI
+        setOrder((prev) => (prev ? { ...prev, status: newStatus } : prev));
+        setUpdatingStatus(true);
+        try {
+            const url = summaryApi.url(summaryApi.order.updateStatus(id));
+            const res = await fetch(url, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", ...authHeaders() },
+                body: JSON.stringify({ status: newStatus }),
+            });
+            let json = {};
+            try { json = await res.json(); } catch { }
+            if (!res.ok || json?.success === false) {
+                throw new Error(json?.message || `Cập nhật trạng thái thất bại: ${res.status}`);
+            }
+            toast.success("Cập nhật trạng thái thành công");
+        } catch (err) {
+            console.error(err);
+            toast.error(err.message || "Có lỗi khi cập nhật trạng thái");
+            // rollback
+            setOrder((prev) => (prev ? { ...prev, status: oldStatus } : prev));
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(false);
 
@@ -280,7 +316,8 @@ export default function OrderDetail() {
             try {
                 setLoading(true);
                 const res = await fetch(
-                    summaryApi.url(summaryApi.order.detail(id))
+                    summaryApi.url(summaryApi.order.detail(id)),
+                    { headers: { Accept: "application/json", ...authHeaders() } }
                 );
                 if (!res.ok)
                     throw new Error(`Fetch order failed: ${res.status}`);
@@ -305,9 +342,7 @@ export default function OrderDetail() {
         try {
             const res = await fetch(
                 summaryApi.url(summaryApi.order.delete(id)),
-                {
-                    method: "DELETE",
-                }
+                { method: "DELETE", headers: { ...authHeaders() } }
             );
             if (!res.ok) throw new Error("Xóa thất bại");
             toast.success("Đã xóa đơn hàng");
@@ -370,12 +405,23 @@ export default function OrderDetail() {
                     {statusMeta && <StatusBadge status={orderStatus} />}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                    <Link
-                        to={`/admin/orders/${id}/edit`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 hover:bg-gray-50"
-                    >
-                        <FiEdit className="text-base" /> Sửa
-                    </Link>
+                    {/* Đổi trạng thái (giống OrderList) */}
+                    <div className="inline-flex items-center gap-2  px-2.5 py-1">
+                        <span className="text-amber-700">Trạng thái:</span>
+                        <select
+                            value={orderStatus || ""}
+                            onChange={(e) => handleUpdateStatus(e.target.value)}
+                            disabled={updatingStatus}
+                            className="bg-white rounded-md border border-gray-300 px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
+                            title="Cập nhật trạng thái"
+                        >
+                            {Object.keys(STATUS_META).map((key) => (
+                                <option key={key} value={key}>
+                                    {STATUS_META[key]?.label || key}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                     <button
                         onClick={handleDelete}
                         className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1 text-red-600 hover:bg-red-50"
@@ -390,6 +436,7 @@ export default function OrderDetail() {
                     </Link>
                 </div>
             </div>
+
 
             {/* ───────── Page title ───────── */}
             <div>

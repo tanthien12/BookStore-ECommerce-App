@@ -5,7 +5,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
-// ✅ Import ảnh bằng relative path
+// Import ảnh bằng relative path
 import b1 from "../../assets/banner/b1.webp";
 import b2 from "../../assets/banner/b2.webp";
 import side1 from "../../assets/banner/side1.webp";

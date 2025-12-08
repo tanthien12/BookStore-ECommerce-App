@@ -1,5 +1,3 @@
-
-
 // src/components/admin/UserForm.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -280,7 +278,7 @@ export default function UserForm({
                             type="submit"
                             form="userForm"
                             disabled={saving}
-                            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+                            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
                         >
                             <FiSave /> {saving ? "Đang lưu…" : mode === "create" ? "Tạo mới" : "Lưu thay đổi"}
                         </button>
@@ -464,7 +462,7 @@ export default function UserForm({
                         <button
                             type="submit"
                             disabled={saving}
-                            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+                            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
                         >
                             <FiSave /> {saving ? "Đang lưu…" : mode === "create" ? "Tạo mới" : "Lưu thay đổi"}
                         </button>

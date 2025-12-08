@@ -498,6 +498,10 @@ export default function ProductDetail() {
   // Handlers
   const handleAddToCart = async () => {
     if (!book) return;
+    if (typeof book.stock === 'number' && qty > book.stock) {
+      toast.error(`Số lượng hàng không đủ (Còn lại: ${book.stock})`);
+      return; 
+    }
     const ok = await addToCart(
       {
         id: book.id,
@@ -512,6 +516,10 @@ export default function ProductDetail() {
 
   const handleBuyNow = async () => {
     if (!book) return;
+    if (typeof book.stock === 'number' && qty > book.stock) {
+      toast.error(`Số lượng hàng không đủ (Còn lại: ${book.stock})`);
+      return; 
+    }
     const ok = await addToCart(
       {
         id: book.id,

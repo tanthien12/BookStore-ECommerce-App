@@ -79,6 +79,7 @@ async function listItemsOfUser(userId) {
       ci.price_snapshot,
       b.title,
       b.image_url,
+      b.stock,
       b.price AS book_price,
       
       -- Lấy giá sale từ logic join (nếu có)

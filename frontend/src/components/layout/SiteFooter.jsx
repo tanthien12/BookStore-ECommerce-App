@@ -23,15 +23,14 @@ export default function SiteFooter() {
                         </p>
                         
                         <div className="flex gap-4">
-                            {/* Icon giả lập bằng span nếu chưa cài react-icons, hoặc thay bằng Icon thật */}
-                            <a href="#" className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition">
-                                <span className="font-bold">f</span>
+                            <a href="#" className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300 shadow-sm">
+                                <FiFacebook className="w-5 h-5" />
                             </a>
-                            <a href="#" className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition">
-                                <span className="font-bold">Y</span>
+                            <a href="#" className="w-9 h-9 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-all duration-300 shadow-sm">
+                                <FiYoutube className="w-5 h-5" />
                             </a>
-                            <a href="#" className="w-8 h-8 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center hover:bg-sky-600 hover:text-white transition">
-                                <span className="font-bold">Z</span>
+                            <a href="#" className="w-9 h-9 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center hover:bg-gradient-to-tr hover:from-yellow-400 hover:via-red-500 hover:to-purple-500 hover:text-white transition-all duration-300 shadow-sm">
+                                <FiInstagram className="w-5 h-5" />
                             </a>
                         </div>
                     </div>

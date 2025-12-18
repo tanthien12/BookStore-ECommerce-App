@@ -199,10 +199,9 @@ const BookModel = {
                 `(unaccent(b.title) ILIKE unaccent(${p}) 
                   OR unaccent(b.author) ILIKE unaccent(${p}) 
                   OR b.isbn ILIKE ${p} 
-                  OR unaccent(b.publisher) ILIKE unaccent(${p}))`
+                  OR unaccent(b.publisher) ILIKE unaccent(${p}))`           
             );
         }
-        // Các phần category_id, language, format giữ nguyên như cũ
         if (category_id) {
             joins += " JOIN bookstore.books_categories bc ON bc.book_id = b.id ";
             values.push(category_id);

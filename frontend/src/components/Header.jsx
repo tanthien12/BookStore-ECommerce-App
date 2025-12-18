@@ -7,18 +7,16 @@ import React, {
   memo,
   useCallback,
 } from "react";
-// ✅ Thêm các icon cần thiết cho Mobile
-import { HiOutlineSquares2X2 } from "react-icons/hi2";
+// ✅ Import Icon
 import {
   FiChevronDown,
   FiSearch,
-  FiBell,
   FiShoppingCart,
   FiUser,
   FiX,
   FiBookOpen,
-  FiMenu,       // Icon Menu Mobile
-  FiLogOut,     // Icon Logout Mobile
+  FiMenu,       
+  FiLogOut,     
   FiChevronRight
 } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
@@ -29,10 +27,8 @@ import { setUserDetails } from "../store/userSlice";
 import { useCart } from "../context/CartContext";
 import ChatLauncher from "./chatbot/ChatLauncher";
 
-// ✅ import cố định theo cấu trúc dự án của bạn
+// ✅ Import các component con
 import CategoryMegaMenu from "./layout/CategoryMegaMenu";
-
-// ✅ import chuông thông báo dùng chung (dropdown)
 import NotificationBell from "./layout/NotificationBell";
 
 /* ================= Utils (GIỮ NGUYÊN) ================= */
@@ -180,8 +176,7 @@ const Logo = () => (
   </Link>
 );
 
-/* ================= Account Popover (GIỮ NGUYÊN CODE CỦA BẠN) ================= */
-// Code này giữ nguyên để logic hiển thị nút Đăng nhập/Đăng ký to đùng vẫn còn
+/* ================= Account Popover (GIỮ NGUYÊN) ================= */
 const AccountPopover = ({ open, onClose, mode = "guest", user }) => {
   const popRef = useRef(null);
   const navigate = useNavigate();
@@ -417,7 +412,7 @@ const SearchBar = ({
   );
 };
 
-/* ================= Component MỚI: Mobile Sidebar ================= */
+/* ================= Mobile Sidebar (GIỮ NGUYÊN) ================= */
 const MobileAccordionItem = ({ title, link, children, onClose }) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
@@ -487,7 +482,7 @@ const MobileSidebar = ({ open, onClose, user, onLogout, blogCategories }) => {
           }`}
       >
         <div className="flex flex-col h-full">
-          {/* Header Sidebar Mobile: Màu Đỏ */}
+          {/* Header Sidebar Mobile */}
           <div className="bg-red-700 text-white pt-8 pb-6 px-4 flex flex-col items-center justify-center">
             <div className="w-16 h-16 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center mb-3 overflow-hidden">
               {user ? (
@@ -610,10 +605,14 @@ const MobileSidebar = ({ open, onClose, user, onLogout, blogCategories }) => {
   );
 };
 
-/* ================= Main Header ================= */
+/* ================= Main Header (SỬA LỖI SEARCH) ================= */
 const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
   const [shadow, setShadow] = useState(false);
+  // State tìm kiếm cho Desktop
   const [query, setQuery] = useState("");
+  // [QUAN TRỌNG] State tìm kiếm riêng cho Mobile để tránh Re-render mất focus
+  const [mobileQuery, setMobileQuery] = useState("");
+
   const [accountOpen, setAccountOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
 
@@ -632,15 +631,8 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
         const res = await fetch(summaryApi.url(summaryApi.blogCategories.list));
         const json = await res.json();
         if (json.success) {
-          const hiddenCats = [
-            "Trang Tĩnh",
-            "System",
-            "Footer Links",
-            "Chưa phân loại",
-          ];
-          const validCats = (json.items || []).filter(
-            (c) => !hiddenCats.includes(c.name)
-          );
+          const hiddenCats = ["Trang Tĩnh", "System", "Footer Links", "Chưa phân loại"];
+          const validCats = (json.items || []).filter((c) => !hiddenCats.includes(c.name));
           setBlogCategories(validCats);
         }
       } catch (err) {
@@ -650,10 +642,17 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
     fetchBlogCats();
   }, []);
 
+  // Submit Search Desktop
   const submitSearch = () => {
     const q = (query || "").trim();
     navigate(`/search${q ? `?q=${encodeURIComponent(q)}` : ""}`);
-    setShowMobileSearch(false);
+  };
+
+  // [QUAN TRỌNG] Submit Search Mobile (sử dụng state mobileQuery)
+  const handleMobileSubmit = () => {
+    const q = (mobileQuery || "").trim();
+    setShowMobileSearch(false); // Đóng thanh tìm kiếm mobile
+    navigate(`/search${q ? `?q=${encodeURIComponent(q)}` : ""}`);
   };
 
   const stored = currentUser || getStoredUser();
@@ -702,64 +701,104 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
         className={`sticky top-0 z-50 bg-white ${shadow ? "shadow-sm" : ""
           }`}
       >
-        {/* ================= PHẦN MOBILE ================= */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white relative border-b border-gray-100">
-          <button
-            onClick={() => setMobileMenuOpen(true)}
-            className="text-gray-700 hover:text-red-600 p-1"
-          >
-            <FiMenu className="text-2xl" />
-          </button>
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <Logo />
+        {/* ================= PHẦN MOBILE (Responsive) ================= */}
+        <div className="md:hidden bg-white sticky top-0 z-50 shadow-sm border-b border-gray-100">
+          
+          {/* HÀNG 1: LOGO (Căn giữa) */}
+          <div className="flex justify-center pt-2 pb-1">
+            <div className="scale-90"> {/* Thu nhỏ nhẹ logo một chút cho thoáng */}
+                <Logo />
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+
+          {/* HÀNG 2: MENU - SEARCH INPUT - ICONS */}
+          <div className="flex items-center gap-2 px-3 pb-3">
+            
+            {/* 1. Nút Menu */}
             <button
-              onClick={() => setShowMobileSearch(!showMobileSearch)}
-              className={`text-2xl transition ${showMobileSearch ? "text-red-600" : "text-gray-700"
-                }`}
+              onClick={() => setMobileMenuOpen(true)}
+              className="text-gray-700 hover:text-red-600 shrink-0 p-1"
             >
-              {showMobileSearch ? <FiX /> : <FiSearch />}
+              <FiMenu className="text-2xl" />
             </button>
-            <Link
-              to="/cart"
-              className="relative text-gray-700 hover:text-red-600"
+
+            {/* 2. Thanh tìm kiếm (Ô nhập liệu nền xám nhạt) */}
+            <form 
+              className="flex-1 relative"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleMobileSubmit();
+              }}
             >
-              <FiShoppingCart className="text-2xl" />
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">
-                {cartCount > 99 ? "99+" : cartCount}
+              <input
+                type="search"
+                value={mobileQuery}
+                onChange={(e) => setMobileQuery(e.target.value)}
+                placeholder="Tìm sách..."
+                className="w-full h-9 pl-9 pr-3 rounded-lg bg-gray-100 border-none text-gray-800 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 placeholder:text-gray-400 transition-all"
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <FiSearch className="text-lg" />
               </span>
-            </Link>
+            </form>
+
+            {/* 3. Cụm Icon bên phải (Bell & Cart) */}
+            <div className="flex items-center gap-2 shrink-0"> {/* Tăng gap lên 2 cho thoáng */}
+               
+               {/* --- SỬA: Ép thẻ div của NotificationBell y hệt thẻ Link của Cart --- */}
+               <div className="relative w-10 h-10 flex items-center justify-center text-gray-700 hover:text-red-600 cursor-pointer">
+                 {/* Thêm class text-2xl bao ngoài để ép icon chuông to bằng icon giỏ hàng */}
+                 <div className="text-2xl flex items-center justify-center">
+                    <NotificationBell />
+                 </div>
+               </div>
+
+               {/* --- Giỏ hàng (Cũng ép cứng size w-10 h-10 để cân đối) --- */}
+               <Link 
+                 to="/cart" 
+                 className="relative w-10 h-10 flex items-center justify-center text-gray-700 hover:text-red-600"
+               >
+                 <FiShoppingCart className="text-2xl" />
+                 
+                 {/* Badge số lượng */}
+                 <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center shadow-sm border border-white">
+                   {cartCount > 99 ? "99+" : cartCount}
+                 </span>
+               </Link>
+            </div>
           </div>
         </div>
 
-        {/* Mobile Search Expand */}
+        {/* Mobile Search Expand (ĐÃ FIX LỖI GÕ CHỮ) */}
         {showMobileSearch && (
-          <div className="md:hidden px-4 pb-4 pt-1 bg-white border-b animate-[fadeIn_.2s_ease-out]">
-            <div className="relative">
+          <div className="md:hidden px-4 pb-4 pt-1 bg-white border-b shadow-sm animate-[fadeIn_.2s_ease-out] relative z-[49]">
+            <form 
+              className="relative"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleMobileSubmit();
+              }}
+            >
               <input
+                type="search"
                 autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && submitSearch()}
+                value={mobileQuery} // Sử dụng State riêng
+                onChange={(e) => setMobileQuery(e.target.value)} // Cập nhật State riêng
                 placeholder="Tìm sách..."
-                className="w-full h-10 pl-4 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-red-500"
+                className="w-full h-10 pl-4 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 text-base"
               />
               <button
-                onClick={submitSearch}
-                className="absolute right-0 top-0 h-10 w-10 flex items-center justify-center text-red-600"
+                type="submit"
+                className="absolute right-0 top-0 h-10 w-10 flex items-center justify-center text-red-600 active:scale-95"
               >
                 <FiSearch />
               </button>
-            </div>
+            </form>
           </div>
         )}
 
         {/* ================= PHẦN DESKTOP ================= */}
         <div className="hidden md:block">
-          {/* Top promo */}
-
-          {/* Main bar */}
           <div className="bg-white border-b border-gray-100">
             <div className="mx-auto max-w-7xl px-3 md:px-4">
               <div className="flex items-center gap-3 py-3 md:gap-6">
@@ -805,7 +844,7 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
                   </div>
                 </div>
 
-                {/* Center */}
+                {/* Center - Search Desktop */}
                 <SearchBar
                   value={query}
                   onChange={setQuery}
@@ -814,7 +853,7 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
 
                 {/* Right */}
                 <div className="ml-auto flex items-end gap-2 sm:gap-4 md:gap-6">
-                  {/* 🔔 Chuông thông báo: dropdown ngay tại Header */}
+                  {/* Notification */}
                   <NotificationBell />
 
                   <NavIcon
@@ -873,7 +912,7 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
         <ChatLauncher />
       </header>
 
-      {/* Component Sidebar dành cho Mobile */}
+      {/* Sidebar Mobile */}
       <MobileSidebar
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
@@ -886,4 +925,3 @@ const Header = ({ onLogout, onChangeLang, currentUser = null }) => {
 };
 
 export default Header;
-

@@ -2,7 +2,7 @@
 const PaymentService = require("../services/payment.service");
 const OrderService = require("../services/order.service");
 
-const CLIENT_URL = process.env.BASE_URL || "http://localhost:5173";
+const CLIENT_URL = process.env.APP_URL || "http://localhost:5173";
 
 /** VNPay: tạo URL thanh toán (không tạo payment ở bước này) */
 async function createVNPayUrl(req, res) {

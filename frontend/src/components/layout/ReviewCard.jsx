@@ -9,7 +9,6 @@ export default function ReviewCard({ review, currentUser, reload }) {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const isOwner = currentUser?.id === review.user_id;
 
-  // helper: kiểm tra token localStorage
   const hasToken = () =>
     !!(localStorage.getItem("access_token") || localStorage.getItem("token"));
 
@@ -41,9 +40,7 @@ export default function ReviewCard({ review, currentUser, reload }) {
       toast.info("Bạn cần đăng nhập để xoá.");
       return;
     }
-
     if (!window.confirm("Bạn có chắc muốn xoá đánh giá này?")) return;
-
     try {
       await reviewApi.deleteAny(review.id);
       toast.success("Đã xoá đánh giá.");
@@ -72,7 +69,7 @@ export default function ReviewCard({ review, currentUser, reload }) {
 
   return (
     <article className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
-      {/* Header: avatar + name/date  --- stars ở phải */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <img
@@ -90,7 +87,6 @@ export default function ReviewCard({ review, currentUser, reload }) {
           </div>
         </div>
 
-        {/* Stars (phía phải top) */}
         <div className="flex items-center gap-2">
           {review.rating != null ? (
             <div className="flex items-center gap-2">
@@ -106,25 +102,9 @@ export default function ReviewCard({ review, currentUser, reload }) {
         {review.content}
       </div>
 
-      {/* Actions small */}
+      {/* Actions small - ĐÃ SỬA: Bỏ Thích và Báo cáo */}
       <div className="mt-3 flex items-center gap-4 text-sm text-gray-500">
-        <button
-          className="flex items-center gap-2 hover:text-gray-700"
-          onClick={() => toast.info("Chức năng Thích tạm ẩn (cần backend).")}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 9l-2 2-2-2m0 6l2-2 2 2" />
-          </svg>
-          <span>Thích (0)</span>
-        </button>
-
-        <button
-          className="hover:text-gray-700"
-          onClick={() => toast.info("Báo cáo đã được gửi (tạm).")}
-        >
-          Báo cáo
-        </button>
-
+        
         <button
           className="hover:text-gray-700"
           onClick={() => setShowReplyBox((s) => !s)}
@@ -132,7 +112,6 @@ export default function ReviewCard({ review, currentUser, reload }) {
           Trả lời
         </button>
 
-        {/* Nếu là owner của review gốc thì cho xóa */}
         {isOwner && (
           <button
             onClick={deleteThis}
@@ -143,7 +122,7 @@ export default function ReviewCard({ review, currentUser, reload }) {
         )}
       </div>
 
-      {/* Reply input (ẩn/hiện) */}
+      {/* Reply input */}
       {showReplyBox && (
         <div className="mt-3">
           <div className="flex items-start gap-3">
@@ -196,7 +175,6 @@ export default function ReviewCard({ review, currentUser, reload }) {
                 <div className="mt-1 text-gray-700 text-sm whitespace-pre-wrap">{rep.content}</div>
 
                 <div className="mt-1 text-xs text-gray-500 flex items-center gap-3">
-                  {/* Nếu là chính chủ reply thì hiện nút xóa */}
                   {currentUser?.id === rep.user_id && (
                     <button
                       onClick={() => deleteReply(rep.id)}

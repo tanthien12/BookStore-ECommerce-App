@@ -108,6 +108,7 @@ const router = createBrowserRouter([
             { path: "shipping-policy", element: <StaticPage targetSlug="shipping-policy" /> },
             { path: "help-center", element: <StaticPage targetSlug="help-center" /> },
             { path: "terms-of-use", element: <StaticPage targetSlug="terms-of-use" /> },
+            { path: "contact", element: <StaticPage targetSlug="contact" /> },
             // ket thuc them moi
 
             {

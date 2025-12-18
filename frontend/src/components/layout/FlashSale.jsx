@@ -1,11 +1,17 @@
 // src/pages/component/FlashSale.jsx
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import useFlashSaleBooks from "../../hooks/useFlashSaleBooks";
 import ProductCard from "../../components/layout/ProductCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-// format đồng hồ đếm ngược
+// Import Swiper và CSS
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Autoplay } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/navigation";
+
+// Hàm format đồng hồ đếm ngược
 function formatCountdown(nearestEnd) {
   if (!nearestEnd) return { h: "00", m: "00", s: "00" };
   const now = Date.now();
@@ -21,142 +27,140 @@ function formatCountdown(nearestEnd) {
   };
 }
 
-// chia mảng theo size
-function chunk(arr, size) {
-  const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
-
-// xác định số item/slide theo kích thước màn hình
-function useItemsPerSlide() {
-  const [w, setW] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth : 1200
-  );
-  useEffect(() => {
-    const onResize = () => setW(window.innerWidth);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  if (w >= 1024) return 5;
-  if (w >= 768) return 4;
-  if (w >= 640) return 3;
-  return 2;
-}
-
 export default function FlashSale() {
   const { books, loading } = useFlashSaleBooks(25);
-  const itemsPerSlide = useItemsPerSlide();
-  const [index, setIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState({ h: "00", m: "00", s: "00" });
+  
+  // Ref để điều khiển Swiper từ nút bên ngoài
+  const swiperRef = useRef(null);
 
-  // tìm thời điểm kết thúc sớm nhất
+  // Tìm thời điểm kết thúc sớm nhất
   const nearestEnd = useMemo(() => {
     if (!books?.length) return null;
     const ends = books
-      // Đọc sale_end từ object lồng nhau
       .map((b) => (b.active_flashsale?.sale_end ? new Date(b.active_flashsale.sale_end) : null))
       .filter((d) => d && !isNaN(d.getTime()))
       .sort((a, b) => a - b);
     return ends[0] || null;
   }, [books]);
 
-  // cập nhật đồng hồ đếm ngược
+  // Cập nhật đồng hồ
   useEffect(() => {
     const t = setInterval(() => setTimeLeft(formatCountdown(nearestEnd)), 1000);
     return () => clearInterval(t);
   }, [nearestEnd]);
 
-  const slides = useMemo(() => chunk(books || [], itemsPerSlide), [books, itemsPerSlide]);
-  const total = slides.length;
-
-  useEffect(() => {
-    if (index >= total) setIndex(0);
-  }, [total, index]);
-
   if (loading) {
     return (
-      <section className="mt-6 bg-[#ffe9e9] rounded-xl p-4">
+      <section className="mt-6 bg-[#ffe9e9] rounded-xl p-4 animate-pulse">
         <h2 className="text-base font-semibold text-red-600 mb-2">Flash Sale</h2>
-        <div className="text-sm text-gray-600">Đang tải sách khuyến mãi...</div>
+        <div className="h-40 bg-red-50 rounded-md"></div>
       </section>
     );
   }
+  
   if (!books || books.length === 0) return null;
 
   return (
-    <section className="mt-10 rounded-2xl overflow-hidden shadow-lg border border-red-100">
+    <section className="mt-6 md:mt-10 rounded-2xl overflow-hidden shadow-lg border border-red-100 bg-white">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-red-600 via-red-500 to-orange-500 text-white">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-extrabold uppercase tracking-wide">🔥 Flash Sale</h2>
-          <div className="flex items-center gap-1 bg-white text-red-600 px-3 py-1 rounded-md font-semibold">
+      <div className="flex items-center justify-between px-3 py-3 md:px-6 md:py-4 bg-gradient-to-r from-red-600 via-red-500 to-orange-500 text-white">
+        
+        {/* Left: Title + Timer */}
+        <div className="flex items-center gap-2 md:gap-3">
+          <h2 className="text-lg md:text-2xl font-extrabold uppercase tracking-wide whitespace-nowrap">
+            🔥 Flash Sale
+          </h2>
+          
+          <div className="flex items-center gap-1 bg-white text-red-600 px-2 py-0.5 md:px-3 md:py-1 rounded md:rounded-md font-bold text-xs md:text-base shadow-sm">
             <span>{timeLeft.h}</span>:<span>{timeLeft.m}</span>:<span>{timeLeft.s}</span>
           </div>
         </div>
 
+        {/* Right: Link & Controls */}
         <div className="flex items-center gap-2">
-          <button
-            aria-label="Previous"
-            onClick={() => setIndex((i) => (i - 1 + total) % total)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-red-600 hover:bg-white"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <button
-            aria-label="Next"
-            onClick={() => setIndex((i) => (i + 1) % total)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-red-600 hover:bg-white"
-          >
-            <ChevronRight size={18} />
-          </button>
+            <Link 
+              to="/flash-sale" 
+              className="text-white hover:text-yellow-200 transition-colors flex items-center"
+              aria-label="Xem tất cả Flash Sale"
+            >
+              {/* Desktop: Hiện chữ */}
+              <span className="hidden md:inline text-sm font-medium mr-1">Xem tất cả</span>
+              
+              {/* Mobile: Hiện icon mũi tên to */}
+              <ChevronRight className="md:hidden w-6 h-6" />
 
-          <Link to="/flash-sale" className="ml-3 text-white hover:underline text-sm">
-            Xem tất cả
-          </Link>
+              {/* Desktop: Icon mũi tên nhỏ trang trí */}
+              <span className="hidden md:inline">&rarr;</span>
+            </Link>
+          
+            {/* Nút Next/Prev chỉ hiện trên Desktop */}
+            <div className="hidden md:flex items-center gap-2 ml-2">
+                <button
+                aria-label="Previous"
+                onClick={() => swiperRef.current?.slidePrev()}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/20 hover:bg-white text-white hover:text-red-600 transition-colors"
+                >
+                <ChevronLeft size={18} />
+                </button>
+                <button
+                aria-label="Next"
+                onClick={() => swiperRef.current?.slideNext()}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/20 hover:bg-white text-white hover:text-red-600 transition-colors"
+                >
+                <ChevronRight size={18} />
+                </button>
+            </div>
         </div>
       </div>
 
-      {/* Slider */}
-      <div className="relative bg-white">
-        <div className="overflow-hidden">
-          <div
-            className="flex transition-transform duration-500 ease-in-out"
-            style={{
-              width: `${100 * total}%`,
-              transform: `translateX(-${(100 / total) * index}%)`,
+      {/* Slider Content */}
+      <div className="p-3 md:p-5">
+        <Swiper
+            modules={[Navigation, Autoplay]}
+            onBeforeInit={(swiper) => {
+                swiperRef.current = swiper;
             }}
-          >
-            {slides.map((slide, sIdx) => (
-              <div key={sIdx} className="px-5 py-5" style={{ width: `${100 / total}%` }}>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {slide.map((b) => (
-                    <div key={b.id} className="h-full">
-                      {/* ProductCard sẽ tự đọc book.active_flashsale */}
-                      <ProductCard book={b} />
-                    </div>
-                  ))}
+            spaceBetween={10}
+            slidesPerView={2} // Mobile mặc định hiện 2 item
+            breakpoints={{
+                // Tablet nhỏ
+                640: {
+                    slidesPerView: 3,
+                    spaceBetween: 15,
+                },
+                // Tablet to
+                768: {
+                    slidesPerView: 4,
+                    spaceBetween: 20,
+                },
+                // Desktop
+                1024: {
+                    slidesPerView: 5,
+                    spaceBetween: 20,
+                },
+                // Màn hình siêu rộng
+                1280: {
+                    slidesPerView: 5,
+                    spaceBetween: 24,
+                }
+            }}
+            autoplay={{
+                delay: 5000,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true
+            }}
+            loop={false}
+            className="pb-2"
+        >
+          {books.map((book) => (
+            <SwiperSlide key={book.id} className="h-auto">
+                <div className="h-full border border-gray-100 rounded-lg hover:shadow-md transition-shadow p-2">
+                    <ProductCard book={book} />
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Dots */}
-        {total > 1 && (
-          <div className="flex items-center justify-center gap-2 pb-5">
-            {Array.from({ length: total }).map((_, i) => (
-              <button
-                key={i}
-                aria-label={`Chuyển tới slide ${i + 1}`}
-                onClick={() => setIndex(i)}
-                className={`h-2.5 w-2.5 rounded-full transition ${
-                  index === i ? "bg-red-600" : "bg-gray-300 hover:bg-gray-400"
-                }`}
-              />
-            ))}
-          </div>
-        )}
+            </SwiperSlide>
+          ))}
+        </Swiper>
       </div>
     </section>
   );

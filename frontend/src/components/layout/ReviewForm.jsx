@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react"; // Bỏ useEffect
 import RatingStars from "./RatingStars";
 import { reviewApi } from "../../api/reviewApi";
 import { toast } from "react-toastify";
@@ -8,21 +8,7 @@ export default function ReviewForm({ bookId, currentUser, onSubmitted }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    const hasToken = localStorage.getItem("access_token") || localStorage.getItem("token");
-
-    if ((currentUser || hasToken) && bookId) {
-      reviewApi.fetchMine(bookId).then((mine) => {
-        if (mounted && mine) {
-          setRating(mine.rating ?? 5);
-          setContent(mine.content ?? "");
-        }
-      });
-    }
-
-    return () => (mounted = false);
-  }, [currentUser, bookId]);
+  // --- ĐÃ BỎ useEffect fetchMine để không load lại comment cũ ---
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,9 +22,17 @@ export default function ReviewForm({ bookId, currentUser, onSubmitted }) {
 
     try {
       setLoading(true);
+      // Dùng upsert vẫn ok, backend sẽ tự tạo mới hoặc update dựa trên logic của bạn.
+      // Nhưng ở đây form luôn trắng nên người dùng trải nghiệm như viết mới.
       await reviewApi.upsert({ book_id: bookId, rating, content });
+      
       setLoading(false);
       toast.success("Gửi đánh giá thành công!");
+      
+      // Reset form sau khi gửi
+      setContent("");
+      setRating(5);
+      
       onSubmitted?.();
     } catch (err) {
       setLoading(false);
